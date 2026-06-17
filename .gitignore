@@ -26,6 +26,10 @@ dist-ssr
 # Dev artifacts
 repomix-output.xml
 *.repomix.xml
+.playwright-mcp/
+
+# Vite template leftovers (unused)
+src/components/HelloWorld.vue
 
 # Claude Code local working files
 .claude/
