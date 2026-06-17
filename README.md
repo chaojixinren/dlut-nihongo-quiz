@@ -28,7 +28,7 @@
 
 直接访问 GitHub Pages 部署：
 
-**👉 https://tianxingleo.github.io/dlut-nihongo-quiz/**
+**👉 https://tianxingleo.top/dlut-nihongo-quiz/**
 
 无需安装，打开就刷。
 
@@ -108,7 +108,7 @@ dlut-nihongo-quiz/
 
 - **触发条件**：push 到 `main` 分支
 - **Workflow**：[`.github/workflows/deploy.yml`](.github/workflows/deploy.yml)
-- **生产 URL**：https://tianxingleo.github.io/dlut-nihongo-quiz/
+- **生产 URL**：https://tianxingleo.top/dlut-nihongo-quiz/
 - **Vite base**：production 下为 `/dlut-nihongo-quiz/`，dev 下为 `/`
 - **路由**：使用 hash routing（`/#/quiz`），刷新任意页面都不会 404
 
@@ -144,7 +144,7 @@ A Vue 3 + Vite + TypeScript + Dexie single-page Japanese quiz app built for fres
 
 **Features:** 80 grammar questions + vocabulary questions, grammar/vocabulary category switching, quiz mode, wrong-answer book, statistics analysis, offline-first via IndexedDB, mobile-friendly UI.
 
-**Live:** https://tianxingleo.github.io/dlut-nihongo-quiz/
+**Live:** https://tianxingleo.top/dlut-nihongo-quiz/
 
 **Run locally:** `git clone`, `npm install`, `npm run dev`.
 
