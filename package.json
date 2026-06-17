@@ -1,0 +1,47 @@
+{
+  "name": "dlut-nihongo-quiz",
+  "version": "0.1.0",
+  "description": "大连理工大学国际信息与软件学院大一下《大家的日语》26-36课期末复习题库 (DLUT Japanese final-review quiz)",
+  "author": "tianxingleo",
+  "license": "Apache-2.0",
+  "type": "module",
+  "homepage": "https://tianxingleo.github.io/dlut-nihongo-quiz/",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tianxingleo/dlut-nihongo-quiz.git"
+  },
+  "bugs": {
+    "url": "https://github.com/tianxingleo/dlut-nihongo-quiz/issues"
+  },
+  "keywords": [
+    "japanese",
+    "quiz",
+    "vue",
+    "vite",
+    "dlut",
+    "minna-no-nihongo",
+    "education",
+    "review"
+  ],
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc -b && vite build",
+    "preview": "vite preview",
+    "parse:words": "tsx scripts/parse-word-markdown.ts",
+    "parse:grammar": "tsx scripts/parse-markdown.ts"
+  },
+  "dependencies": {
+    "dexie": "^4.4.4",
+    "vue": "^3.5.34",
+    "vue-router": "^4.6.4"
+  },
+  "devDependencies": {
+    "@types/node": "^24.12.3",
+    "@vitejs/plugin-vue": "^6.0.6",
+    "@vue/tsconfig": "^0.9.1",
+    "tsx": "^4.22.4",
+    "typescript": "~6.0.2",
+    "vite": "^8.0.12",
+    "vue-tsc": "^3.2.8"
+  }
+}
