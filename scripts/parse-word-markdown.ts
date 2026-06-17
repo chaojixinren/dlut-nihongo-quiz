@@ -11,6 +11,7 @@ interface RawOption {
   key: string
   text: string
   isCorrect: boolean
+  annotation: string
 }
 
 interface RawSubQuestion {
@@ -71,8 +72,15 @@ function parseSubQuestionHeader(line: string): { subType: SubType; prompt: strin
 function parseOptionLine(line: string): RawOption | null {
   const m = line.match(/^-\s+([A-D])[\.、\s]+(.+?)\s*$/)
   if (!m) return null
-  const { text, isCorrect } = stripCorrectMark(m[2])
-  return { key: m[1], text, isCorrect }
+  let body = m[2].trim()
+  let annotation = ''
+  const annoMatch = body.match(/【(.+?)】/)
+  if (annoMatch) {
+    annotation = annoMatch[1].trim()
+    body = body.replace(/【.+?】/, '').trim()
+  }
+  const { text, isCorrect } = stripCorrectMark(body)
+  return { key: m[1], text, isCorrect, annotation }
 }
 
 function parseFile(filePath: string, sourceFile: string): RawEntry[] {
@@ -177,7 +185,14 @@ function buildQuestion(entry: RawEntry, sub: RawSubQuestion, position: number, s
   const answerText = answerOpt?.text || ''
 
   const direction = sub.subType === 'kana-to-kanji' ? '汉字写法' : '假名读音'
-  const explanation = `考察「${entry.headword}」的${direction}。中文意思：${entry.translation || '—'}。`
+  let explanation = `考察「${entry.headword}」的${direction}。中文意思：${entry.translation || '—'}。`
+
+  const wrongOpts = sub.options.filter(o => o.key !== sub.answerKey && o.annotation)
+  if (wrongOpts.length > 0) {
+    const label = sub.subType === 'kana-to-kanji' ? '读音' : '对应的汉字'
+    const refs = wrongOpts.map(o => `${o.key}. ${o.text} → ${o.annotation}`)
+    explanation += ` 其他选项的${label}：${refs.join('；')}`
+  }
 
   const tags = ['单词', `第${lesson}课`, sub.subType === 'kana-to-kanji' ? '选汉字' : '选假名']
 

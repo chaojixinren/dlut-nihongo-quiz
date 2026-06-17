@@ -65,12 +65,11 @@ onMounted(async () => {
 watch(activeCategory, () => { refresh() })
 
 function startQuiz(mode: string) {
-  const params: Record<string, string> = {}
+  const params: Record<string, string> = { mode }
   if (mode === 'wrong' && wrongIds.value.length > 0) {
     params.ids = wrongIds.value.join(',')
   } else if (mode === 'untouched' && untouchedIds.value.length > 0) {
     params.ids = untouchedIds.value.join(',')
-    params.mode = 'untouched'
   }
   router.push({ path: '/quiz', query: params })
 }
@@ -90,8 +89,8 @@ async function discardSession() {
 
 const titleText = computed(() => activeCategory.value === 'word' ? '📖 日语单词题库' : '📚 日语期末复习题库')
 const subtitleText = computed(() => activeCategory.value === 'word'
-  ? `${totalQuestions}题 · 第26-36课 · 汉字 ↔ 假名`
-  : `${totalQuestions}题 · 8大题组 · 智能复习系统`)
+  ? `${totalQuestions.value}题 · 第26-36课 · 汉字 ↔ 假名`
+  : `${totalQuestions.value}题 · 8大题组 · 智能复习系统`)
 const tagSectionTitle = computed(() => activeCategory.value === 'word' ? '按课/标签复习' : '按语法标签复习')
 const weakSectionTitle = computed(() => activeCategory.value === 'word' ? '📊 薄弱课/标签（优先复习）' : '📊 薄弱语法点（优先复习）')
 </script>
