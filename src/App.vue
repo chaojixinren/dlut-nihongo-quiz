@@ -30,6 +30,18 @@ function switchCategory(cat: Category) {
           :class="['cat-btn', { active: activeCategory === 'word' }]"
           @click="switchCategory('word')"
         >📖 单词题</button>
+        <button
+          :class="['cat-btn', { active: activeCategory === 'history' }]"
+          @click="switchCategory('history')"
+        >📚 近代史</button>
+        <button
+          :class="['cat-btn', { active: activeCategory === 'party' }]"
+          @click="switchCategory('party')"
+        >🚩 党史</button>
+        <button
+          :class="['cat-btn', { active: activeCategory === 'military' }]"
+          @click="switchCategory('military')"
+        >🎖️ 军事理论</button>
       </div>
       <div class="nav-links">
         <router-link to="/">首页</router-link>

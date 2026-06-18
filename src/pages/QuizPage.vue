@@ -57,6 +57,7 @@ onMounted(async () => {
   }
   const cat = activeCategory.value
   const all = await loadQuestionBank(cat)
+  const groupFilter = route.query.group as string | undefined
 
   // Resume path
   if (route.query.resume === '1') {
@@ -88,17 +89,24 @@ onMounted(async () => {
   if (route.query.tag) {
     questions.value = getQuestionsByTag(route.query.tag as string, cat)
     mode.value = `tag: ${route.query.tag}`
-  } else if (route.query.ids) {
-    const ids = (route.query.ids as string).split(',')
-    questions.value = ids.map(id => all.find(q => q.id === id)!).filter(Boolean)
-    mode.value = modeParam === 'untouched' ? 'untouched' : 'wrong'
   } else {
-    questions.value = [...all]
+    let pool = groupFilter ? all.filter(q => q.groupId === groupFilter) : [...all]
+    if (route.query.ids) {
+      const idSet = new Set((route.query.ids as string).split(','))
+      pool = pool.filter(q => idSet.has(q.id))
+      mode.value = modeParam === 'untouched' ? 'untouched' : 'wrong'
+    }
+    if (groupFilter) {
+      const groupTitle = all.find(q => q.groupId === groupFilter)?.groupTitle || groupFilter
+      const action = route.query.ids ? (modeParam === 'untouched' ? '未做' : '错题') : modeParam
+      mode.value = `${groupTitle} · ${action}`
+    }
+    questions.value = pool
   }
 
   if (modeParam === 'random') {
     questions.value = shuffleArray(questions.value)
-    mode.value = 'random'
+    if (!groupFilter) mode.value = 'random'
   } else if (modeParam === 'weakness') {
     const stats = await db.questionStats.toArray()
     const validIds = new Set(all.map(q => q.id))
@@ -106,10 +114,10 @@ onMounted(async () => {
     const priorityQuestions = weakIds.map(id => all.find(q => q.id === id)!).filter(Boolean)
     const remaining = shuffleArray(all.filter(q => !weakIds.includes(q.id)))
     questions.value = [...priorityQuestions, ...remaining]
-    mode.value = 'weakness'
+    if (!groupFilter) mode.value = 'weakness'
   } else if (modeParam === 'exam') {
     questions.value = shuffleArray([...all])
-    mode.value = 'exam'
+    if (!groupFilter) mode.value = 'exam'
   }
 
   sessionId.value = generateSessionId()
@@ -119,7 +127,15 @@ onMounted(async () => {
 })
 
 function handleSelect(key: string) {
-  if (!submitted.value) selectedKey.value = key
+  if (submitted.value) return
+  if (currentQuestion.value?.multiAnswer) {
+    const selected = new Set(selectedKey.value.split(''))
+    if (selected.has(key)) selected.delete(key)
+    else selected.add(key)
+    selectedKey.value = [...selected].sort().join('')
+  } else {
+    selectedKey.value = key
+  }
 }
 
 async function handleSubmit() {
@@ -127,7 +143,10 @@ async function handleSubmit() {
   submitted.value = true
 
   const q = currentQuestion.value
-  const isCorrect = selectedKey.value === q.answerKey
+  const isCorrect = q.multiAnswer
+    ? new Set(selectedKey.value.split('')).size === new Set(q.answerKey.split('')).size
+      && [...selectedKey.value].every(k => q.answerKey.includes(k))
+    : selectedKey.value === q.answerKey
   if (isCorrect) correctCount.value++
   else wrongList.value.push(q.id)
 
@@ -205,10 +224,8 @@ watch(currentQuestion, async (q) => {
 function onKeydown(e: KeyboardEvent) {
   if (finished.value) return
   if (!submitted.value) {
-    if (e.key === 'a' || e.key === 'A') handleSelect('A')
-    if (e.key === 'b' || e.key === 'B') handleSelect('B')
-    if (e.key === 'c' || e.key === 'C') handleSelect('C')
-    if (e.key === 'd' || e.key === 'D') handleSelect('D')
+    const k = e.key.toUpperCase()
+    if (['A', 'B', 'C', 'D', 'E'].includes(k)) handleSelect(k)
     if (e.key === 'Enter' && selectedKey.value) handleSubmit()
   } else {
     if (e.key === 'Enter' || e.key === 'n' || e.key === 'N') handleNext()

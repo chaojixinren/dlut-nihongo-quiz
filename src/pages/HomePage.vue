@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { loadQuestionBank, getAllTags } from '../services/quizEngine'
+import { loadQuestionBank, getAllTags, getAllGroups } from '../services/quizEngine'
 import { getWeakTags, getMasterySummary, getWrongQuestionIds, getUntouchedQuestionIds } from '../services/reviewScheduler'
 import { db } from '../db/database'
 import { loadActiveSession, clearActiveSession, isSessionInProgress, type ActiveSession } from '../services/sessionResume'
@@ -25,6 +25,7 @@ const mastery = ref({ mastered: 0, learning: 0, weak: 0, untouched: 0 })
 const wrongIds = ref<string[]>([])
 const untouchedIds = ref<string[]>([])
 const activeSession = ref<ActiveSession | null>(null)
+const groupStats = ref<Record<string, { total: number; done: number; attempts: number; correct: number; wrong: number; wrongIds: string[]; untouchedIds: string[] }>>({})
 
 async function refresh() {
   const cat = activeCategory.value
@@ -34,6 +35,7 @@ async function refresh() {
 
   const validIds = new Set(all.map(q => q.id))
   const stats = await db.questionStats.toArray()
+  const statsMap = new Map(stats.map(s => [s.questionId, s]))
   const relevant = stats.filter(s => validIds.has(s.questionId))
 
   doneCount.value = relevant.filter(s => s.attemptCount > 0).length
@@ -51,6 +53,27 @@ async function refresh() {
   mastery.value = await getMasterySummary(cat)
   wrongIds.value = await getWrongQuestionIds(cat)
   untouchedIds.value = await getUntouchedQuestionIds(cat)
+
+  // Per-group stats for history view
+  const groups = getAllGroups(cat)
+  const next: typeof groupStats.value = {}
+  for (const g of groups) {
+    const groupQs = all.filter(q => q.groupId === g.groupId)
+    const groupIds = new Set(groupQs.map(q => q.id))
+    const rel = relevant.filter(s => groupIds.has(s.questionId))
+    const attempts = rel.reduce((sum, s) => sum + s.attemptCount, 0)
+    const correct = rel.reduce((sum, s) => sum + s.correctCount, 0)
+    next[g.groupId] = {
+      total: g.count,
+      done: rel.filter(s => s.attemptCount > 0).length,
+      attempts,
+      correct,
+      wrong: rel.filter(s => s.wrongCount > 0).length,
+      wrongIds: wrongIds.value.filter(id => groupIds.has(id)),
+      untouchedIds: groupQs.filter(q => !statsMap.get(q.id) || statsMap.get(q.id)!.attemptCount === 0).map(q => q.id),
+    }
+  }
+  groupStats.value = next
 
   const saved = await loadActiveSession()
   activeSession.value = isSessionInProgress(saved) ? saved : null
@@ -78,6 +101,18 @@ function startTagQuiz(tag: string) {
   router.push({ path: '/quiz', query: { tag } })
 }
 
+function startHistoryGroup(groupId: string, mode: 'sequential' | 'random' | 'wrong' | 'untouched') {
+  const s = groupStats.value[groupId]
+  if (!s) return
+  const params: Record<string, string> = { group: groupId, mode }
+  if (mode === 'wrong' && s.wrongIds.length > 0) {
+    params.ids = s.wrongIds.join(',')
+  } else if (mode === 'untouched' && s.untouchedIds.length > 0) {
+    params.ids = s.untouchedIds.join(',')
+  }
+  router.push({ path: '/quiz', query: params })
+}
+
 function resumeSession() {
   router.push({ path: '/quiz', query: { resume: '1' } })
 }
@@ -87,12 +122,75 @@ async function discardSession() {
   activeSession.value = null
 }
 
-const titleText = computed(() => activeCategory.value === 'word' ? '📖 日语单词题库' : '📚 日语期末复习题库')
-const subtitleText = computed(() => activeCategory.value === 'word'
-  ? `${totalQuestions.value}题 · 第26-36课 · 汉字 ↔ 假名`
-  : `${totalQuestions.value}题 · 8大题组 · 智能复习系统`)
+const titleText = computed(() => {
+  if (activeCategory.value === 'word') return '📖 日语单词题库'
+  if (activeCategory.value === 'history') return '🏛️ 中国近现代史刷题'
+  if (activeCategory.value === 'party') return '🚩 中国共产党党史刷题'
+  if (activeCategory.value === 'military') return '🎖️ 军事理论刷题'
+  return '📚 日语期末复习题库'
+})
+const subtitleText = computed(() => {
+  if (activeCategory.value === 'word') return `${totalQuestions.value}题 · 第26-36课 · 汉字 ↔ 假名`
+  if (activeCategory.value === 'history') return `${totalQuestions.value}题 · 11个刷题单 · 完全独立 · 单选/多选/判断`
+  if (activeCategory.value === 'party') return `${totalQuestions.value}题 · 7个刷题单 · 单选/多选/判断 · 按题型与按优先级`
+  if (activeCategory.value === 'military') return `${totalQuestions.value}题 · 22个刷题单 · 单选/多选/判断 · 按章节与按优先级`
+  return `${totalQuestions.value}题 · 8大题组 · 智能复习系统`
+})
 const tagSectionTitle = computed(() => activeCategory.value === 'word' ? '按课/标签复习' : '按语法标签复习')
 const weakSectionTitle = computed(() => activeCategory.value === 'word' ? '📊 薄弱课/标签（优先复习）' : '📊 薄弱语法点（优先复习）')
+
+// Categories that use the "group-card grid" home view (vs the grammar/word tag-cloud view)
+const isGroupView = computed(() =>
+  activeCategory.value === 'history' || activeCategory.value === 'party' || activeCategory.value === 'military',
+)
+
+const GROUP_ORDER: Record<string, string[]> = {
+  history: ['t0', 't1', 't2', 't3', 't5-1', 't5-2', 't5-3', 't5-4', 'hist-a', 'hist-b', 'hist-c'],
+  party: ['party-single', 'party-multi', 'party-judge', 'party-p1', 'party-p2', 'party-p3', 'party-p4'],
+  military: [
+    'military-ch1', 'military-ch2', 'military-ch3', 'military-ch4', 'military-ch5',
+    'military-ch6', 'military-ch7', 'military-ch8', 'military-ch9', 'military-ch10',
+    'military-ch11', 'military-ch12', 'military-ch13', 'military-ch14', 'military-ch15',
+    'military-ch16', 'military-ch17', 'military-ch18',
+    'military-p1', 'military-p2', 'military-p3', 'military-p4',
+  ],
+}
+
+const groupViewList = computed(() => {
+  const cat = activeCategory.value
+  if (cat !== 'history' && cat !== 'party' && cat !== 'military') return []
+  const order = GROUP_ORDER[cat]
+  const titles: Record<string, string> = {}
+  for (const q of questions.value) titles[q.groupId] = q.groupTitle
+  const groups = getAllGroups(cat)
+  // Preserve declared order; append any unexpected groups at the end so we never hide data.
+  const seen = new Set<string>()
+  const ordered = order
+    .map(id => {
+      const g = groups.find(x => x.groupId === id)
+      if (!g) return null
+      seen.add(id)
+      return { groupId: id, groupTitle: titles[id] || g.groupTitle, count: g.count }
+    })
+    .filter(Boolean) as { groupId: string; groupTitle: string; count: number }[]
+  for (const g of groups) {
+    if (!seen.has(g.groupId)) {
+      ordered.push({ groupId: g.groupId, groupTitle: g.groupTitle, count: g.count })
+    }
+  }
+  return ordered
+})
+
+const groupViewSectionTitle = computed(() => {
+  if (activeCategory.value === 'party') return '选择刷题单（按题型 / 按优先级）'
+  if (activeCategory.value === 'military') return '选择刷题单（按章节 / 按优先级）'
+  return '选择刷题单'
+})
+const groupViewHint = computed(() => {
+  if (activeCategory.value === 'party') return '每个刷题单独立计分。"按题型"组（单选/多选/判断）与"按优先级"组（P1-P4）共享同一批题目，可任选一种节奏刷。'
+  if (activeCategory.value === 'military') return '每个刷题单独立计分。"按章节"组与"按优先级"组（P1-P4）共享同一批题目；P1 必考核心建议先刷。'
+  return '每个刷题单独立计分，互不影响。机考模拟按试卷拆成 4 个独立组。'
+})
 </script>
 <template>
   <div class="home">
@@ -131,7 +229,7 @@ const weakSectionTitle = computed(() => activeCategory.value === 'word' ? '📊 
       </div>
     </div>
 
-    <div class="section">
+    <div class="section" v-if="!isGroupView">
       <h2>快速开始</h2>
       <div class="quick-actions">
         <button class="action-btn primary" @click="startQuiz('sequential')">📖 顺序刷题</button>
@@ -142,7 +240,7 @@ const weakSectionTitle = computed(() => activeCategory.value === 'word' ? '📊 
       </div>
     </div>
 
-    <div class="section" v-if="weakTags.length > 0">
+    <div class="section" v-if="weakTags.length > 0 && !isGroupView">
       <h2>{{ weakSectionTitle }}</h2>
       <div class="weak-list">
         <div v-for="w in weakTags.slice(0, 6)" :key="w.tag" class="weak-item" @click="startTagQuiz(w.tag)">
@@ -156,7 +254,31 @@ const weakSectionTitle = computed(() => activeCategory.value === 'word' ? '📊 
       </div>
     </div>
 
-    <div class="section">
+    <div class="section" v-if="isGroupView">
+      <h2>{{ groupViewSectionTitle }}</h2>
+      <p class="section-hint">{{ groupViewHint }}</p>
+      <div class="history-groups">
+        <div v-for="g in groupViewList" :key="g.groupId" class="history-card">
+          <div class="hc-header">
+            <span class="hc-title">{{ g.groupTitle }}</span>
+            <span class="hc-count">{{ (groupStats[g.groupId]?.total ?? g.count) }}题</span>
+          </div>
+          <div class="hc-stats">
+            <span>已做 <strong>{{ groupStats[g.groupId]?.done ?? 0 }}</strong></span>
+            <span>正确率 <strong>{{ groupStats[g.groupId] && groupStats[g.groupId].attempts ? Math.round(groupStats[g.groupId].correct / groupStats[g.groupId].attempts * 100) + '%' : '—' }}</strong></span>
+            <span>错题 <strong>{{ groupStats[g.groupId]?.wrong ?? 0 }}</strong></span>
+          </div>
+          <div class="hc-actions">
+            <button class="hc-btn primary" @click="startHistoryGroup(g.groupId, 'sequential')">📖 顺序</button>
+            <button class="hc-btn" @click="startHistoryGroup(g.groupId, 'random')">🎲 随机</button>
+            <button class="hc-btn danger" @click="startHistoryGroup(g.groupId, 'wrong')" :disabled="(groupStats[g.groupId]?.wrongIds.length ?? 0) === 0">🔄 错题 ({{ groupStats[g.groupId]?.wrongIds.length ?? 0 }})</button>
+            <button class="hc-btn" @click="startHistoryGroup(g.groupId, 'untouched')" :disabled="(groupStats[g.groupId]?.untouchedIds.length ?? 0) === 0">🆕 未做 ({{ groupStats[g.groupId]?.untouchedIds.length ?? 0 }})</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section" v-if="!isGroupView">
       <h2>{{ tagSectionTitle }}</h2>
       <div class="tag-cloud">
         <TagBadge v-for="t in getAllTags(activeCategory).slice(0, 20)" :key="t.tag" :tag="t.tag" :clickable="true" @click="startTagQuiz(t.tag)" />
@@ -200,4 +322,19 @@ h1 { font-size: 26px; margin-bottom: 4px; }
 .weak-bar { height: 100%; border-radius: 3px; transition: width .3s; }
 .weak-arrow { color: var(--text-muted); }
 .tag-cloud { display: flex; flex-wrap: wrap; gap: 4px; }
+.section-hint { color: var(--text-muted); font-size: 13px; margin-bottom: 16px; }
+.history-groups { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px; }
+.history-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+.hc-header { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.hc-title { font-size: 15px; font-weight: 700; color: var(--text-primary); }
+.hc-count { font-size: 13px; color: var(--accent); white-space: nowrap; }
+.hc-stats { display: flex; gap: 16px; font-size: 13px; color: var(--text-secondary); }
+.hc-stats strong { color: var(--text-primary); font-weight: 600; }
+.hc-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.hc-btn { padding: 6px 10px; border-radius: 7px; border: 1px solid var(--border); background: var(--bg); color: var(--text-primary); font-size: 12px; cursor: pointer; transition: all .2s; }
+.hc-btn:hover:not(:disabled) { border-color: var(--accent); background: var(--bg-hover); }
+.hc-btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+.hc-btn.danger { color: #ef4444; border-color: rgba(239,68,68,.4); }
+.hc-btn.danger:hover:not(:disabled) { background: rgba(239,68,68,.1); }
+.hc-btn:disabled { opacity: .35; cursor: not-allowed; }
 </style>

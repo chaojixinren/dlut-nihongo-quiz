@@ -20,6 +20,7 @@ interface RawQuestion {
 const CHINESE_NUM_MAP: Record<string, string> = {
   一: '01', 二: '02', 三: '03', 四: '04',
   五: '05', 六: '06', 七: '07', 八: '08',
+  九: '09',
 }
 
 function tagQuestion(q: RawQuestion): { grammarPoints: string[]; tags: string[] } {
@@ -103,7 +104,7 @@ function parseMarkdown(filePath: string): RawQuestion[] {
     const qNumMatch = block.match(/^### 第(\d+)题/)
     if (!qNumMatch) {
       // Non-question block: still check for group headers
-      const gMatch = block.match(/## 题组([一二三四五六七八])/)
+      const gMatch = block.match(/## 题组([一二三四五六七八九])/)
       if (gMatch) {
         currentGroupId = `g${CHINESE_NUM_MAP[gMatch[1]]}`
         currentGroupTitle = gMatch[0].replace(/^##\s*/, '').trim()
@@ -253,7 +254,7 @@ function parseMarkdown(filePath: string): RawQuestion[] {
     }
 
     // After processing this question, check for group header for NEXT question
-    const nextGMatch = block.match(/## 题组([一二三四五六七八])/)
+    const nextGMatch = block.match(/## 题组([一二三四五六七八九])/)
     if (nextGMatch) {
       currentGroupId = `g${CHINESE_NUM_MAP[nextGMatch[1]]}`
       currentGroupTitle = nextGMatch[0].replace(/^##\s*/, '').trim()

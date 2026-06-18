@@ -1,4 +1,4 @@
-export type Category = 'grammar' | 'word'
+export type Category = 'grammar' | 'word' | 'history' | 'party' | 'military'
 
 export interface Question {
   id: string
@@ -18,6 +18,8 @@ export interface Question {
   status: 'ready' | 'needs_review'
   subType?: 'kana-to-kanji' | 'kanji-to-kana'
   headword?: string
+  multiAnswer?: boolean
+  questionType?: 'single' | 'multi' | 'judgement'
 }
 
 export interface Attempt {

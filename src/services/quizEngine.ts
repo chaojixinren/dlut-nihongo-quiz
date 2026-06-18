@@ -2,17 +2,45 @@ import type { Question, Category } from '../types/question'
 
 const cache = new Map<Category, Question[]>()
 
+export function shuffleQuestionOptions(q: Question): Question {
+  const correctOpt = q.options.find(o => o.key === q.answerKey)
+  if (!correctOpt) return q
+  const shuffled = shuffleArray(q.options)
+  const correctIdx = shuffled.findIndex(o => o.key === q.answerKey)
+  const newOptions = shuffled.map((opt, i) => ({
+    key: String.fromCharCode(65 + i),
+    text: opt.text,
+  }))
+  return {
+    ...q,
+    options: newOptions,
+    answerKey: newOptions[correctIdx].key,
+  }
+}
+
 export async function loadQuestionBank(category: Category = 'grammar'): Promise<Question[]> {
   const cached = cache.get(category)
   if (cached) return cached
   const base = import.meta.env.BASE_URL
-  const file = category === 'word' ? `${base}word-question-bank.json` : `${base}question-bank.json`
+  const file = category === 'word'
+    ? `${base}word-question-bank.json`
+    : category === 'history'
+      ? `${base}history-question-bank.json`
+      : category === 'party'
+        ? `${base}party-question-bank.json`
+        : category === 'military'
+          ? `${base}military-question-bank.json`
+          : `${base}question-bank.json`
   const resp = await fetch(file)
   if (!resp.ok) throw new Error(`无法加载题库 ${file}: ${resp.status}`)
-  const questions: Question[] = await resp.json()
-  for (const q of questions) {
-    if (!q.category) q.category = category
-  }
+  const raw: Question[] = await resp.json()
+  // For history/party/military: do NOT shuffle options, because multi-answer scoring
+  // depends on the original key positions and the user's selected-key string match.
+  // Shuffling would also detach the answer text from the displayed letters.
+  const noShuffle = category === 'history' || category === 'party' || category === 'military'
+  const questions: Question[] = noShuffle
+    ? raw.map((q) => ({ ...q, category: q.category || category }))
+    : raw.map((q) => shuffleQuestionOptions({ ...q, category: q.category || category }))
   cache.set(category, questions)
   return questions
 }
@@ -37,6 +65,17 @@ export function getQuestionsByTag(tag: string, category: Category = 'grammar'): 
 export function getQuestionsByGroup(groupId: string, category: Category = 'grammar'): Question[] {
   const list = cache.get(category) || []
   return list.filter(q => q.groupId === groupId)
+}
+
+export function getAllGroups(category: Category = 'grammar'): { groupId: string; groupTitle: string; count: number }[] {
+  const list = cache.get(category) || []
+  const map = new Map<string, { groupTitle: string; count: number }>()
+  for (const q of list) {
+    const existing = map.get(q.groupId)
+    if (existing) existing.count++
+    else map.set(q.groupId, { groupTitle: q.groupTitle, count: 1 })
+  }
+  return [...map.entries()].map(([groupId, v]) => ({ groupId, groupTitle: v.groupTitle, count: v.count }))
 }
 
 export function getAllTags(category: Category = 'grammar'): { tag: string; count: number }[] {

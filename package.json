@@ -28,7 +28,10 @@
     "build": "vue-tsc -b && vite build",
     "preview": "vite preview",
     "parse:words": "tsx scripts/parse-word-markdown.ts",
-    "parse:grammar": "tsx scripts/parse-markdown.ts"
+    "parse:grammar": "tsx scripts/parse-markdown.ts",
+    "parse:history": "tsx scripts/parse-history-markdown.ts",
+    "parse:party": "tsx scripts/parse-party-markdown.ts",
+    "parse:military": "tsx scripts/parse-military-markdown.ts"
   },
   "dependencies": {
     "dexie": "^4.4.4",
