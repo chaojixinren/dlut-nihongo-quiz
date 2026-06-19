@@ -134,7 +134,7 @@ const subtitleText = computed(() => {
   if (activeCategory.value === 'history') return `${totalQuestions.value}题 · 11个刷题单 · 完全独立 · 单选/多选/判断`
   if (activeCategory.value === 'party') return `${totalQuestions.value}题 · 7个刷题单 · 单选/多选/判断 · 按题型与按优先级`
   if (activeCategory.value === 'military') return `${totalQuestions.value}题 · 22个刷题单 · 单选/多选/判断 · 按章节与按优先级`
-  return `${totalQuestions.value}题 · 8大题组 · 智能复习系统`
+  return `${totalQuestions.value}题 · 10大题组 · 智能复习系统`
 })
 const tagSectionTitle = computed(() => activeCategory.value === 'word' ? '按课/标签复习' : '按语法标签复习')
 const weakSectionTitle = computed(() => activeCategory.value === 'word' ? '📊 薄弱课/标签（优先复习）' : '📊 薄弱语法点（优先复习）')

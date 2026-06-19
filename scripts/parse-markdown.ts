@@ -20,7 +20,7 @@ interface RawQuestion {
 const CHINESE_NUM_MAP: Record<string, string> = {
   一: '01', 二: '02', 三: '03', 四: '04',
   五: '05', 六: '06', 七: '07', 八: '08',
-  九: '09',
+  九: '09', 十: '10',
 }
 
 function tagQuestion(q: RawQuestion): { grammarPoints: string[]; tags: string[] } {
@@ -104,7 +104,7 @@ function parseMarkdown(filePath: string): RawQuestion[] {
     const qNumMatch = block.match(/^### 第(\d+)题/)
     if (!qNumMatch) {
       // Non-question block: still check for group headers
-      const gMatch = block.match(/## 题组([一二三四五六七八九])/)
+      const gMatch = block.match(/## 题组([一二三四五六七八九十])/)
       if (gMatch) {
         currentGroupId = `g${CHINESE_NUM_MAP[gMatch[1]]}`
         currentGroupTitle = gMatch[0].replace(/^##\s*/, '').trim()
@@ -140,6 +140,15 @@ function parseMarkdown(filePath: string): RawQuestion[] {
         if (inStem) stem += '\n' + part
         if (inExp) expSection += '\n' + part
       }
+    }
+
+    // Truncate expSection at trailing meta-content (group summary, next group
+    // header, appendix). The last question of a file or group otherwise
+    // absorbs everything up to the next `### 第N题`, pulling in summaries and
+    // the answer appendix.
+    const metaBoundary = expSection.match(/(?:^|\n)(?:##\s|### 本组核心知识点总结)/m)
+    if (metaBoundary) {
+      expSection = expSection.slice(0, metaBoundary.index).replace(/[\s\n]+$/, '')
     }
 
     // Clean stem - extract just the Japanese sentence (before options)
@@ -254,7 +263,7 @@ function parseMarkdown(filePath: string): RawQuestion[] {
     }
 
     // After processing this question, check for group header for NEXT question
-    const nextGMatch = block.match(/## 题组([一二三四五六七八九])/)
+    const nextGMatch = block.match(/## 题组([一二三四五六七八九十])/)
     if (nextGMatch) {
       currentGroupId = `g${CHINESE_NUM_MAP[nextGMatch[1]]}`
       currentGroupTitle = nextGMatch[0].replace(/^##\s*/, '').trim()
