@@ -161,16 +161,17 @@ function parseFile(spec: FileSpec, rawDir: string): RawQuestion[] {
             j++
             while (j < body.length) {
               const l3 = body[j].trim()
-              if (!l3) { j++; continue }
               if (/^\*\*答案/.test(l3)) break
               if (QUESTION_HDR.test(l3)) break
               if (ANY_SECTION.test(l3)) break
               explanation += '\n' + l3
               j++
             }
+            // Collapse 3+ newlines to 2 and trim trailing whitespace
+            explanation = explanation.replace(/\n{3,}/g, '\n\n').replace(/[\s\n]+$/, '')
             break
           }
-          explanation += (explanation ? '\n' : '') + l2.replace(/^\*\*|\*\*$/g, '')
+          explanation += (explanation ? '\n' : '') + l2.replace(/^\*\*(.+?)\*\*$/, '$1')
           j++
         }
         break
@@ -253,11 +254,19 @@ function parseFile(spec: FileSpec, rawDir: string): RawQuestion[] {
   return out
 }
 
+function extractExplicitTags(explanation: string): string[] {
+  const m = explanation.match(/^\*\*标签\*\*\s*[：:]\s*(.+?)\s*$/m)
+  if (!m) return []
+  return m[1].split(/[·,，、]/).map(t => t.trim()).filter(Boolean)
+}
+
 function tagQuestion(q: RawQuestion): { tags: string[]; grammarPoints: string[] } {
   const tags: string[] = []
   if (q.multiAnswer) tags.push('多选题')
   if (q.questionType === 'judgement') tags.push('判断题')
   if (q.questionType === 'single') tags.push('单选题')
+
+  for (const t of extractExplicitTags(q.explanation)) tags.push(t)
 
   const full = q.stem + ' ' + q.explanation
   const contentTags: [string, RegExp][] = [

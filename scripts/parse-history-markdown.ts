@@ -173,16 +173,16 @@ function parseFile(spec: FileSpec, rawDir: string): RawQuestion[] {
             j++
             while (j < body.length) {
               const l3 = body[j].trim()
-              if (!l3) { j++; continue }
               if (/^\*\*\s*答案/.test(l3)) break
               if (QUESTION_HDR.test(l3)) break
               explanation += '\n' + l3
               j++
             }
+            explanation = explanation.replace(/\n{3,}/g, '\n\n').replace(/[\s\n]+$/, '')
             break
           }
           // No explicit 解析 prefix: take the trailing non-empty line as explanation.
-          explanation += (explanation ? '\n' : '') + l2.replace(/^\*{1,2}\s*/, '')
+          explanation += (explanation ? '\n' : '') + l2.replace(/^\*\*(.+?)\*\*$/, '$1')
           j++
         }
         break
@@ -267,6 +267,12 @@ function parseFile(spec: FileSpec, rawDir: string): RawQuestion[] {
   return out
 }
 
+function extractExplicitTags(explanation: string): string[] {
+  const m = explanation.match(/^\*\*标签\*\*\s*[：:]\s*(.+?)\s*$/m)
+  if (!m) return []
+  return m[1].split(/[·,，、]/).map(t => t.trim()).filter(Boolean)
+}
+
 function tagQuestion(q: RawQuestion): { tags: string[]; grammarPoints: string[] } {
   // History questions don't use grammar-point tagging; derive chapter tag from groupTitle instead.
   const tags: string[] = []
@@ -275,6 +281,8 @@ function tagQuestion(q: RawQuestion): { tags: string[]; grammarPoints: string[] 
   if (q.multiAnswer) tags.push('多选题')
   if (q.questionType === 'judgement') tags.push('判断题')
   if (q.questionType === 'single') tags.push('单选题')
+
+  for (const t of extractExplicitTags(q.explanation)) tags.push(t)
 
   // Content-based light tagging (反帝/反封建/党史/条约 etc.)
   const full = q.stem + ' ' + q.explanation

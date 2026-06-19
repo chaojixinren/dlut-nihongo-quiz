@@ -28,6 +28,11 @@ repomix-output.xml
 *.repomix.xml
 .playwright-mcp/
 
+# Secrets — never commit
+.env
+.env.*
+!.env.example
+
 # Vite template leftovers (unused)
 src/components/HelloWorld.vue
 
