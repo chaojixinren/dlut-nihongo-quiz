@@ -6,7 +6,6 @@ import {
   getQuestionsByTag,
   shuffleArray,
   generateSessionId,
-  toggleMultiSelect,
   isMultiAnswerCorrect,
 } from '../services/quizEngine'
 import {
@@ -97,6 +96,7 @@ function resolveMode(all: Question[]): {
 } {
   const tag = route.query.tag as string | undefined
   const groupFilter = route.query.group as string | undefined
+  const groupsParam = route.query.groups as string | undefined
   const idsParam = route.query.ids as string | undefined
   const modeParam = route.query.mode as string | undefined
 
@@ -108,7 +108,15 @@ function resolveMode(all: Question[]): {
     }
   }
 
-  let pool = groupFilter ? all.filter((q) => q.groupId === groupFilter) : [...all]
+  let pool: Question[]
+  if (groupsParam) {
+    const groupSet = new Set(groupsParam.split(','))
+    pool = all.filter((q) => groupSet.has(q.groupId))
+  } else if (groupFilter) {
+    pool = all.filter((q) => q.groupId === groupFilter)
+  } else {
+    pool = [...all]
+  }
   if (idsParam) {
     const idSet = new Set(idsParam.split(','))
     pool = pool.filter((q) => idSet.has(q.id))
@@ -123,7 +131,9 @@ function resolveMode(all: Question[]): {
       : (modeParam as QuizMode) || 'sequential'
 
   let displayMode: string = poolMode
-  if (groupFilter) {
+  if (groupsParam) {
+    displayMode = `套题 · ${poolMode}`
+  } else if (groupFilter) {
     const groupTitle = all.find((q) => q.groupId === groupFilter)?.groupTitle || groupFilter
     const action = idsParam ? (modeParam === 'untouched' ? '未做' : '错题') : poolMode
     displayMode = `${groupTitle} · ${action}`
@@ -195,11 +205,8 @@ onMounted(async () => {
 
 function handleSelect(key: string) {
   if (submitted.value) return
-  if (currentQuestion.value?.multiAnswer) {
-    selectedKey.value = toggleMultiSelect(selectedKey.value, key)
-  } else {
-    selectedKey.value = key
-  }
+  // QuestionCard already computed the correct toggled/new value
+  selectedKey.value = key
 }
 
 async function handleSubmit() {

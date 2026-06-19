@@ -1,4 +1,4 @@
-import type { Category } from '../types/question'
+import type { Category, SubBankMeta } from '../types/question'
 
 export interface CategoryMeta {
   key: Category
@@ -10,6 +10,7 @@ export interface CategoryMeta {
   groupOrder?: string[]
   groupViewTitle?: string
   groupViewHint?: string
+  subBanks?: SubBankMeta[]
 }
 
 export const CATEGORIES: CategoryMeta[] = [
@@ -17,9 +18,32 @@ export const CATEGORIES: CategoryMeta[] = [
     key: 'grammar',
     short: '语法',
     long: '日语语法',
-    desc: '大家的日语 第26–36课 · 语法点辨析与填空',
+    desc: '大家的日语 第26–36课 · 历年真题 · 语法题库',
     icon: '文',
     bankFile: 'question-bank.json',
+    subBanks: [
+      {
+        key: 'textbook',
+        name: '学习通99题',
+        desc: '大家的日语第26–36课 · 语法点辨析与填空',
+        groupOrder: ['g01', 'g02', 'g03', 'g04', 'g05', 'g06', 'g07', 'g08', 'g09', 'g10'],
+        groupViewTitle: '学习通 · 题组',
+      },
+      {
+        key: '2021',
+        name: '2021年真题',
+        desc: '79题 · 汉字读音/词汇/语法综合',
+        groupOrder: ['g11'],
+        groupViewTitle: '2021真题',
+      },
+      {
+        key: '2024',
+        name: '2024年真题',
+        desc: '8大题组 · 读音/汉字/词汇/语法/阅读',
+        groupOrder: ['g21', 'g22', 'g23', 'g24', 'g25', 'g26', 'g27', 'g28'],
+        groupViewTitle: '2024真题 · 题型',
+      },
+    ],
   },
   {
     key: 'word',

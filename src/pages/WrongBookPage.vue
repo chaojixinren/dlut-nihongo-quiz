@@ -6,6 +6,7 @@ import { isWrong } from '../services/reviewScheduler'
 import { db } from '../db/database'
 import { useActiveCategory, loadActiveCategory } from '../services/categoryStore'
 import { truncate } from '../utils/text'
+import { stripMarkdown } from '../utils/renderMarkdown'
 import type { QuestionStats } from '../types/question'
 
 const router = useRouter()
@@ -109,7 +110,7 @@ function handleClearWrong(questionId: string) {
       <div v-for="item in pagedItems" :key="item.questionId" class="wrong-item">
         <div class="wi-main">
           <span class="wi-id">{{ item.questionId }}</span>
-          <span class="wi-stem">{{ truncate(item.stem, 50) }}</span>
+          <span class="wi-stem">{{ truncate(stripMarkdown(item.stem), 50) }}</span>
           <span class="wi-group">{{ item.group }}</span>
         </div>
         <div class="wi-stats">

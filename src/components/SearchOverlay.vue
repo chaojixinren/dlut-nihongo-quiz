@@ -4,6 +4,7 @@ import { searchQuestions } from '../services/quizEngine'
 import { useActiveCategory } from '../services/categoryStore'
 import { getCategoryMeta } from '../config/categories'
 import { truncate } from '../utils/text'
+import { stripMarkdown } from '../utils/renderMarkdown'
 import type { Question } from '../types/question'
 
 const props = defineProps<{
@@ -112,7 +113,7 @@ const scopeLabel = () => (scopeAll.value ? '全库' : getCategoryMeta(activeCate
             <div class="sr-id">{{ q.id }}</div>
             <div class="sr-content">
               <span class="sr-group">{{ q.groupTitle }}</span>
-              <span class="sr-stem">{{ truncate(q.stem, 60) }}</span>
+              <span class="sr-stem">{{ truncate(stripMarkdown(q.stem), 60) }}</span>
             </div>
           </div>
         </div>

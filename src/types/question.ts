@@ -1,5 +1,14 @@
 export type Category = 'grammar' | 'word' | 'history' | 'party' | 'military'
 
+export interface SubBankMeta {
+  key: string
+  name: string
+  desc: string
+  groupOrder: string[]
+  groupViewTitle?: string
+  groupViewHint?: string
+}
+
 export interface Question {
   id: string
   category: Category

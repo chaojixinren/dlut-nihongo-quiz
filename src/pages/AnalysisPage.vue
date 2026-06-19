@@ -4,6 +4,7 @@ import { getRelevantData, getAllGrammarPoints, getQuestionById } from '../servic
 import { useActiveCategory, loadActiveCategory } from '../services/categoryStore'
 import { db } from '../db/database'
 import { truncate } from '../utils/text'
+import { stripMarkdown } from '../utils/renderMarkdown'
 import PageSkeleton from '../components/PageSkeleton.vue'
 import type { QuestionStats, Question, Attempt } from '../types/question'
 
@@ -113,7 +114,7 @@ const topWrongQuestions = computed(() => {
     const q = getQuestionById(s.questionId)
     return {
       id: s.questionId,
-      stem: truncate(q?.stem || '', 50),
+      stem: truncate(stripMarkdown(q?.stem || ''), 50),
       wrongCount: s.wrongCount,
       rate: s.attemptCount > 0 ? Math.round((s.correctCount / s.attemptCount) * 100) : 0,
     }

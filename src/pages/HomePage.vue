@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
+import { useHiddenSite } from '../composables/useHiddenSite'
 import { loadQuestionBank, getAllTags, getAllGroups, getCategoryMeta } from '../services/quizEngine'
 import {
   getWeakTags,
@@ -15,7 +16,13 @@ import {
   isSessionInProgress,
   type ActiveSession,
 } from '../services/sessionResume'
-import { useActiveCategory, loadActiveCategory } from '../services/categoryStore'
+import {
+  useActiveCategory,
+  loadActiveCategory,
+  getActiveSubBankKey,
+  setActiveSubBankKey,
+  useActiveSubBankKey,
+} from '../services/categoryStore'
 import { GROUPED_CATEGORIES } from '../config/categories'
 import { computeStreak } from '../utils/streak'
 import StatCard from '../components/StatCard.vue'
@@ -26,6 +33,7 @@ import type { Question, QuestionStats, QuizMode } from '../types/question'
 
 const router = useRouter()
 const activeCategory = useActiveCategory()
+const { isUnlocked } = useHiddenSite()
 const loading = ref(true)
 const questions = ref<Question[]>([])
 const totalQuestions = ref(0)
@@ -189,18 +197,50 @@ async function discardSession() {
 }
 
 const meta = computed(() => getCategoryMeta(activeCategory.value))
-const isGroupView = computed(() => GROUPED_CATEGORIES.has(activeCategory.value))
-const titleText = computed(() =>
-  meta.value.long === '日语语法' ? '日语期末复习题库' : meta.value.long,
+const activeSubBankKey = useActiveSubBankKey()
+const hasSubBanks = computed(() => {
+  const sb = meta.value.subBanks
+  return Boolean(sb && sb.length > 0)
+})
+const currentSubBank = computed(() => {
+  if (!hasSubBanks.value || !activeSubBankKey.value) return null
+  return meta.value.subBanks!.find((s) => s.key === activeSubBankKey.value) || null
+})
+const visibleSubBanks = computed(() => {
+  const sb = meta.value.subBanks
+  if (!sb) return []
+  // When unlocked, show all sub-banks; otherwise only show textbook/学习通
+  if (isUnlocked.value) return sb
+  return sb.filter((s) => s.key === 'textbook')
+})
+const isGroupView = computed(
+  () =>
+    GROUPED_CATEGORIES.has(activeCategory.value) ||
+    (hasSubBanks.value && Boolean(activeSubBankKey.value)),
 )
+const titleText = computed(() => {
+  if (meta.value.long === '日语语法' && currentSubBank.value)
+    return currentSubBank.value.name
+  return meta.value.long === '日语语法' ? '日语期末复习题库' : meta.value.long
+})
 const subtitleText = computed(() => {
   const n = totalQuestions.value
   const k = activeCategory.value
+  if (k === 'grammar') {
+    if (currentSubBank.value) {
+      const gCount = currentSubBank.value.groupOrder.length
+      const qCount = questions.value.filter((q) =>
+        currentSubBank.value!.groupOrder.includes(q.groupId),
+      ).length
+      return `${qCount} 题 · ${gCount}大题组`
+    }
+    return `${n} 题 · 2个子题库 · 智能复习`
+  }
   if (k === 'word') return `${n} 题 · 第26-36课 · 汉字 / 假名`
   if (k === 'history') return `${n} 题 · 11个刷题单 · 单选/多选/判断`
   if (k === 'party') return `${n} 题 · 7个刷题单 · 单选/多选/判断`
   if (k === 'military') return `${n} 题 · 22个刷题单 · 单选/多选/判断`
-  return `${n} 题 · 10大题组 · 智能复习`
+  return `${n} 题`
 })
 const tagSectionTitle = computed(() =>
   activeCategory.value === 'word' ? '按课/标签复习' : '按语法标签复习',
@@ -209,8 +249,57 @@ const weakSectionTitle = computed(() =>
   activeCategory.value === 'word' ? '薄弱课/标签' : '薄弱语法点',
 )
 
+function selectSubBank(key: string) {
+  setActiveSubBankKey(key)
+  totalQuestions.value = questions.value.filter((q) => {
+    const sb = meta.value.subBanks?.find((s) => s.key === key)
+    return sb ? sb.groupOrder.includes(q.groupId) : true
+  }).length
+}
+
+function clearSubBank() {
+  setActiveSubBankKey(null)
+}
+
+function startSubBankFull(mode: 'sequential' | 'random' | 'wrong' | 'untouched') {
+  const sb = currentSubBank.value
+  if (!sb) return
+  const params: Record<string, string> = { mode, groups: sb.groupOrder.join(',') }
+  if (mode === 'wrong') {
+    const allWrong: string[] = []
+    for (const gid of sb.groupOrder) {
+      const s = groupStats.value[gid]
+      if (s) allWrong.push(...s.wrongIds)
+    }
+    if (allWrong.length > 0) params.ids = allWrong.join(',')
+  } else if (mode === 'untouched') {
+    const allUntouched: string[] = []
+    for (const gid of sb.groupOrder) {
+      const s = groupStats.value[gid]
+      if (s) allUntouched.push(...s.untouchedIds)
+    }
+    if (allUntouched.length > 0) params.ids = allUntouched.join(',')
+  }
+  router.push({ path: '/quiz', query: params })
+}
+
 const groupViewList = computed(() => {
   const cat = activeCategory.value
+  // Sub-bank mode: show groups from the selected sub-bank
+  if (hasSubBanks.value && currentSubBank.value) {
+    const subOrder = currentSubBank.value.groupOrder
+    const titles: Record<string, string> = {}
+    for (const q of questions.value) titles[q.groupId] = q.groupTitle
+    const groups = getAllGroups(cat).filter((g) => subOrder.includes(g.groupId))
+    return subOrder
+      .map((id) => {
+        const g = groups.find((x) => x.groupId === id)
+        if (!g) return null
+        return { groupId: id, groupTitle: titles[id] || g.groupTitle, count: g.count }
+      })
+      .filter(Boolean) as { groupId: string; groupTitle: string; count: number }[]
+  }
+  // Normal grouped categories (history/party/military)
   if (!GROUPED_CATEGORIES.has(cat)) return []
   const order = meta.value.groupOrder || []
   const titles: Record<string, string> = {}
@@ -233,8 +322,14 @@ const groupViewList = computed(() => {
   return ordered
 })
 
-const groupViewSectionTitle = computed(() => meta.value.groupViewTitle || '刷题单')
-const groupViewHint = computed(() => meta.value.groupViewHint || '')
+const groupViewSectionTitle = computed(() => {
+  if (currentSubBank.value) return currentSubBank.value.groupViewTitle || '题组'
+  return meta.value.groupViewTitle || '刷题单'
+})
+const groupViewHint = computed(() => {
+  if (currentSubBank.value) return currentSubBank.value.desc
+  return meta.value.groupViewHint || ''
+})
 </script>
 <template>
   <div v-if="loading" class="home"><PageSkeleton type="card" /></div>
@@ -297,7 +392,7 @@ const groupViewHint = computed(() => meta.value.groupViewHint || '')
       </div>
     </section>
 
-    <section class="section" v-if="!isGroupView">
+    <section class="section" v-if="!isGroupView && !hasSubBanks">
       <h2>快速开始</h2>
       <div class="quick-actions">
         <button class="btn btn-accent" @click="startQuiz('sequential')">顺序刷题</button>
@@ -320,41 +415,77 @@ const groupViewHint = computed(() => meta.value.groupViewHint || '')
       </div>
     </section>
 
-    <section class="section" v-if="weakTags.length > 0 && !isGroupView">
-      <h2>{{ weakSectionTitle }}</h2>
-      <div class="weak-list">
-        <div
-          v-for="w in weakTags.slice(0, 6)"
-          :key="w.tag"
-          class="weak-item"
-          @click="startTagQuiz(w.tag)"
-        >
-          <div class="weak-info">
-            <span class="weak-tag">{{ w.tag }}</span>
-            <span class="weak-rate">正确率 {{ w.correctRate }}%</span>
-          </div>
-          <div class="weak-bar-bg">
-            <div
-              class="weak-bar"
-              :style="{
-                width: w.correctRate + '%',
-                background:
-                  w.correctRate < 50
-                    ? 'var(--wrong)'
-                    : w.correctRate < 70
-                      ? 'var(--warning)'
-                      : 'var(--correct)',
-              }"
-            />
-          </div>
-          <span class="weak-arrow">&rarr;</span>
-        </div>
+    <!-- Grammar notes entry — only visible when unlocked -->
+    <section v-if="isUnlocked && activeCategory === 'grammar'" class="grammar-entry-card" @click="router.push('/grammar-notes')">
+      <div class="ge-icon" aria-hidden="true">文</div>
+      <div class="ge-body">
+        <div class="ge-title">核心语法整理</div>
+        <div class="ge-sub">第 26–36 课句型 · 变形规则 · 易混辨析 · 速记口诀</div>
       </div>
+      <div class="ge-arrow" aria-hidden="true">→</div>
     </section>
 
-    <section class="section" v-if="isGroupView">
-      <h2>{{ groupViewSectionTitle }}</h2>
-      <p class="section-hint">{{ groupViewHint }}</p>
+    <!-- Sub-bank selection cards -->
+    <Transition name="sb-fade" mode="out-in">
+      <section class="section" v-if="hasSubBanks && !activeSubBankKey" key="subbanks">
+        <h2>选择题库</h2>
+        <p class="section-hint">选择一个子题库进入对应题组</p>
+        <div class="subbank-grid">
+          <div
+            v-for="sb in visibleSubBanks"
+            :key="sb.key"
+            class="subbank-card"
+            @click="selectSubBank(sb.key)"
+          >
+            <div class="sb-icon">{{ sb.key === 'textbook' ? '文' : sb.key === '2021' ? '試' : '卷' }}</div>
+            <div class="sb-body">
+              <div class="sb-title">{{ sb.name }}</div>
+              <div class="sb-desc">{{ sb.desc }}</div>
+              <div class="sb-meta">
+                {{ questions.filter((q) => sb.groupOrder.includes(q.groupId)).length }} 题 · {{ sb.groupOrder.length }} 个分组
+              </div>
+            </div>
+            <div class="sb-arrow">→</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Sub-bank group view with full-set bar -->
+      <section class="section" v-else-if="hasSubBanks && activeSubBankKey" key="groups">
+        <div class="subbank-back-row">
+          <button class="btn btn-ghost back-btn" @click="clearSubBank">
+            <span class="back-arrow">←</span> 题库列表
+          </button>
+        </div>
+        <div class="full-set-bar">
+          <div class="full-set-info">
+            <h2>{{ currentSubBank?.name }}</h2>
+            <p class="full-set-desc">{{ currentSubBank?.desc }}</p>
+          </div>
+          <div class="full-set-actions">
+            <button class="btn btn-accent" @click="startSubBankFull('sequential')">刷整套 · 顺序</button>
+            <button class="btn btn-outline" @click="startSubBankFull('random')">刷整套 · 随机</button>
+            <button class="btn btn-outline" @click="startSubBankFull('untouched')">未做 · 顺序</button>
+            <button class="btn btn-outline danger" @click="startSubBankFull('wrong')">错题 · 顺序</button>
+          </div>
+        </div>
+      </section>
+    </Transition>
+
+    <!-- Grouped categories (history/party/military): full-set bar + group cards -->
+    <section class="section" v-if="isGroupView && !hasSubBanks">
+      <div class="full-set-bar">
+        <div class="full-set-info">
+          <h2>{{ groupViewSectionTitle }}</h2>
+          <p class="full-set-desc">{{ groupViewHint }}</p>
+        </div>
+        <div class="full-set-actions">
+          <button class="btn btn-accent" @click="startQuiz('sequential')">刷整套 · 顺序</button>
+          <button class="btn btn-outline" @click="startQuiz('random')">刷整套 · 随机</button>
+          <button class="btn btn-outline" @click="startQuiz('untouched')">未做 · 顺序</button>
+          <button class="btn btn-outline danger" @click="startQuiz('wrong')">错题 · 顺序</button>
+        </div>
+      </div>
       <div class="group-grid">
         <div v-for="g in groupViewList" :key="g.groupId" class="group-card">
           <div class="gc-header">
@@ -404,6 +535,38 @@ const groupViewHint = computed(() => meta.value.groupViewHint || '')
               未做 ({{ groupStats[g.groupId]?.untouchedIds.length ?? 0 }})
             </button>
           </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" v-if="weakTags.length > 0 && !isGroupView">
+      <h2>{{ weakSectionTitle }}</h2>
+      <div class="weak-list">
+        <div
+          v-for="w in weakTags.slice(0, 6)"
+          :key="w.tag"
+          class="weak-item"
+          @click="startTagQuiz(w.tag)"
+        >
+          <div class="weak-info">
+            <span class="weak-tag">{{ w.tag }}</span>
+            <span class="weak-rate">正确率 {{ w.correctRate }}%</span>
+          </div>
+          <div class="weak-bar-bg">
+            <div
+              class="weak-bar"
+              :style="{
+                width: w.correctRate + '%',
+                background:
+                  w.correctRate < 50
+                    ? 'var(--wrong)'
+                    : w.correctRate < 70
+                      ? 'var(--warning)'
+                      : 'var(--correct)',
+              }"
+            />
+          </div>
+          <span class="weak-arrow">&rarr;</span>
         </div>
       </div>
     </section>
@@ -602,6 +765,132 @@ h1 {
   margin-bottom: 16px;
   line-height: 1.6;
 }
+.full-set-desc {
+  color: var(--text-muted);
+  font-size: 13px;
+  margin: 0;
+}
+
+/* ---- Sub-bank cards ---- */
+.subbank-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.subbank-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 18px 22px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  transition: border-color 0.18s, background 0.18s, transform 0.18s, box-shadow 0.18s;
+}
+.subbank-card:hover {
+  border-color: var(--accent);
+  background: var(--bg-hover);
+  transform: translateX(3px);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+}
+.sb-icon {
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 700;
+  color: #fff;
+  background: var(--accent);
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.sb-body {
+  flex: 1;
+  min-width: 0;
+}
+.sb-title {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+.sb-desc {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin: 0 0 4px;
+}
+.sb-meta {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.sb-arrow {
+  font-size: 18px;
+  color: var(--accent);
+  flex-shrink: 0;
+  transition: transform 0.18s;
+}
+.subbank-card:hover .sb-arrow {
+  transform: translateX(3px);
+}
+
+/* ---- Full-set bar ---- */
+.full-set-bar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 16px 20px;
+  margin-bottom: 16px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+}
+.full-set-info {
+  min-width: 0;
+}
+.full-set-info h2 {
+  margin-bottom: 4px;
+}
+.full-set-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+/* ---- Back row ---- */
+.subbank-back-row {
+  margin-bottom: 12px;
+}
+.back-btn {
+  font-size: 13px;
+  padding: 4px 10px;
+  transition: opacity 0.15s;
+}
+.back-btn:hover {
+  opacity: 0.7;
+}
+.back-arrow {
+  margin-right: 4px;
+}
+
+/* ---- Transition ---- */
+.sb-fade-enter-active,
+.sb-fade-leave-active {
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+.sb-fade-enter-from {
+  opacity: 0;
+  transform: translateY(10px);
+}
+.sb-fade-leave-to {
+  opacity: 0;
+  transform: translateY(-10px);
+}
+
 .group-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
@@ -614,6 +903,11 @@ h1 {
   display: flex;
   flex-direction: column;
   gap: 10px;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.group-card:hover {
+  border-color: var(--accent);
+  box-shadow: 0 1px 8px rgba(0, 0, 0, 0.05);
 }
 .gc-header {
   display: flex;
@@ -645,5 +939,61 @@ h1 {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
+}
+
+.grammar-entry-card {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 18px 22px;
+  margin-bottom: 32px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  cursor: pointer;
+  transition:
+    border-color 0.15s,
+    background 0.15s,
+    transform 0.15s;
+}
+.grammar-entry-card:hover {
+  border-color: var(--accent);
+  background: var(--bg-hover);
+  transform: translateX(2px);
+}
+.ge-icon {
+  font-family: var(--font-display);
+  font-size: 26px;
+  font-weight: 700;
+  color: #fff;
+  background: var(--accent);
+  width: 48px;
+  height: 48px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  letter-spacing: 1px;
+}
+.ge-body {
+  flex: 1;
+  min-width: 0;
+}
+.ge-title {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+  letter-spacing: 0.5px;
+}
+.ge-sub {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+.ge-arrow {
+  font-size: 18px;
+  color: var(--accent);
+  flex-shrink: 0;
 }
 </style>

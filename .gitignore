@@ -58,3 +58,4 @@ src/components/HelloWorld.vue
 
 # Brainstorming/planning docs (internal, not user-facing)
 docs/superpowers/
+.superpowers/

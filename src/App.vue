@@ -1,16 +1,64 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, watch, onMounted, onBeforeUnmount } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { useActiveCategory, loadActiveCategory, setActiveCategory } from './services/categoryStore'
 import { getQuestionById } from './services/quizEngine'
 import { CATEGORIES } from './config/categories'
+import { useHiddenSite } from './composables/useHiddenSite'
 import type { Category } from './types/question'
 import SearchOverlay from './components/SearchOverlay.vue'
 
 const router = useRouter()
+const route = useRoute()
+const routeKey = ref(0)
 const activeCategory = useActiveCategory()
 const searchOpen = ref(false)
 const mobileMenuOpen = ref(false)
+
+const {
+  isUnlocked,
+  unlockProgress,
+  startLongPress,
+  cancelLongPress,
+  lock,
+} = useHiddenSite()
+
+function exitHidden() {
+  lock()
+}
+
+// Long press handlers — both touch and mouse
+let pressStartX = 0
+let pressStartY = 0
+function onPressStart(e: MouseEvent | TouchEvent) {
+  if (e instanceof MouseEvent) {
+    pressStartX = e.clientX
+    pressStartY = e.clientY
+  } else {
+    const t = e.touches[0]
+    pressStartX = t.clientX
+    pressStartY = t.clientY
+  }
+  startLongPress()
+}
+function onPressMove(e: MouseEvent | TouchEvent) {
+  let x: number, y: number
+  if (e instanceof MouseEvent) {
+    x = e.clientX
+    y = e.clientY
+  } else {
+    x = e.touches[0].clientX
+    y = e.touches[0].clientY
+  }
+  if (Math.abs(x - pressStartX) > 10 || Math.abs(y - pressStartY) > 10) {
+    cancelLongPress()
+  }
+}
+function onPressEnd() {
+  if (unlockProgress.value < 100) {
+    cancelLongPress()
+  }
+}
 
 const navLinks = [
   { to: '/', label: '首页' },
@@ -25,11 +73,23 @@ onMounted(async () => {
   await loadActiveCategory()
 })
 
-function switchCategory(cat: Category) {
-  if (cat === activeCategory.value) return
-  setActiveCategory(cat)
-  router.push('/home')
+function navigateTo(path: string) {
   mobileMenuOpen.value = false
+  if (route.path === path) {
+    routeKey.value++
+  }
+  router.push(path)
+}
+
+function switchCategory(cat: Category) {
+  mobileMenuOpen.value = false
+  if (cat !== activeCategory.value) {
+    setActiveCategory(cat)
+  }
+  if (route.path === '/home') {
+    routeKey.value++
+  }
+  router.push('/home')
 }
 
 function handleSearchNavigate(questionId: string) {
@@ -67,7 +127,14 @@ function openSearchFromMobile() {
           </button>
         </div>
         <div class="nav-links">
-          <router-link v-for="l in navLinks" :key="l.to" :to="l.to">{{ l.label }}</router-link>
+          <a
+            v-for="l in navLinks"
+            :key="l.to"
+            :class="{ 'router-link-active': route.path === l.to }"
+            href="#"
+            @click.prevent="navigateTo(l.to)"
+            >{{ l.label }}</a
+          >
           <button class="search-trigger" @click="searchOpen = true">⌕ 搜索</button>
         </div>
       </div>
@@ -83,12 +150,13 @@ function openSearchFromMobile() {
         <div class="nav-mobile-menu" @click.stop>
           <div class="nav-mobile-section">
             <div class="nav-mobile-section-title">导航</div>
-            <router-link
+            <a
               v-for="l in navLinks"
               :key="l.to"
-              :to="l.to"
-              @click="mobileMenuOpen = false"
-              >{{ l.label }}</router-link
+              :class="{ 'router-link-active': route.path === l.to }"
+              href="#"
+              @click.prevent="navigateTo(l.to)"
+              >{{ l.label }}</a
             >
             <button class="mobile-search-trigger" @click="openSearchFromMobile">⌕ 搜索题目</button>
           </div>
@@ -110,19 +178,35 @@ function openSearchFromMobile() {
     <main class="main">
       <router-view v-slot="{ Component }">
         <transition name="page-fade" mode="out-in">
-          <component :is="Component" />
+          <component :is="Component" :key="routeKey" />
         </transition>
       </router-view>
     </main>
     <footer class="app-footer">
       <div class="footer-inner">
-        <span>题库 &copy; 2025 tianxingleo</span>
+        <span
+          class="footer-copyright"
+          @mousedown="onPressStart"
+          @mousemove="onPressMove"
+          @mouseup="onPressEnd"
+          @mouseleave="onPressEnd"
+          @touchstart="onPressStart"
+          @touchmove="onPressMove"
+          @touchend="onPressEnd"
+        >
+          <span class="press-ring" :style="{ width: unlockProgress + '%' }"></span>
+          题库 &copy; 2025 tianxingleo
+        </span>
         <span class="footer-sep">·</span>
         <a href="https://github.com/tianxingleo/dlut-nihongo-quiz" target="_blank">GitHub</a>
         <span class="footer-sep">·</span>
         <span>Apache-2.0</span>
         <span class="footer-sep">·</span>
         <span>DLUT 国际信息与软件学院</span>
+        <template v-if="isUnlocked">
+          <span class="footer-sep">·</span>
+          <button class="footer-exit-btn" @click="exitHidden">合上</button>
+        </template>
       </div>
     </footer>
   </div>
@@ -410,6 +494,21 @@ function openSearchFromMobile() {
 .footer-sep {
   color: var(--border);
 }
+.footer-exit-btn {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  font-family: var(--font-display);
+  font-size: 12px;
+  letter-spacing: 2px;
+  padding: 2px 10px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.footer-exit-btn:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
 
 @media (max-width: 639px) {
   .nav {
@@ -459,4 +558,28 @@ function openSearchFromMobile() {
     gap: 6px;
   }
 }
+
+/* Hidden site entrance — long press trigger */
+.footer-copyright {
+  position: relative;
+  cursor: default;
+  user-select: none;
+  -webkit-user-select: none;
+  min-height: 44px;
+  min-width: 44px;
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 4px;
+}
+.press-ring {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 2px;
+  background: var(--accent);
+  opacity: 0.6;
+  transition: width 0.08s linear;
+  pointer-events: none;
+}
+
 </style>

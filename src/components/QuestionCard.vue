@@ -3,6 +3,7 @@ import { ref, computed } from 'vue'
 import type { Question } from '../types/question'
 import { toggleMultiSelect, isMultiAnswerCorrect } from '../utils/multiAnswer'
 import { renderExplanation } from '../utils/renderExplanation'
+import { renderMarkdown } from '../utils/renderMarkdown'
 import TagBadge from './TagBadge.vue'
 
 const props = defineProps<{
@@ -114,7 +115,7 @@ const tagsSectionTitle = computed(() => (props.question.category === 'word' ? '�
       <span class="q-mode">{{ mode }}</span>
     </div>
 
-    <div class="q-stem" v-text="question.stem" />
+    <div class="q-stem" v-html="renderMarkdown(question.stem)" />
     <div class="q-hint" v-if="question.multiAnswer">多选，请勾选所有正确选项</div>
 
     <div
@@ -252,6 +253,14 @@ const tagsSectionTitle = computed(() => (props.question.category === 'word' ? '�
   line-height: 1.7;
   color: var(--text-primary);
   margin-bottom: 14px;
+  white-space: pre-wrap;
+}
+.q-stem :deep(strong) {
+  font-weight: 700;
+  color: var(--text-primary);
+}
+.q-stem :deep(p) {
+  margin: 0 0 0.4em;
 }
 .q-hint {
   font-size: 13px;

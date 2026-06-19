@@ -9,6 +9,11 @@ const router = createRouter({
     { path: '/wrong', name: 'wrong', component: () => import('../pages/WrongBookPage.vue') },
     { path: '/analysis', name: 'analysis', component: () => import('../pages/AnalysisPage.vue') },
     { path: '/settings', name: 'settings', component: () => import('../pages/SettingsPage.vue') },
+    {
+      path: '/grammar-notes',
+      name: 'grammar-notes',
+      component: () => import('../pages/GrammarNotesPage.vue'),
+    },
   ],
 })
 
