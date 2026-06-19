@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { ref, computed, onBeforeUnmount, nextTick } from 'vue'
+import { ref, computed, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { marked } from 'marked'
 import { useHiddenSite } from '../composables/useHiddenSite'
-import { useActiveCategory, setActiveCategory, setActiveSubBankKey } from '../services/categoryStore'
+import { setActiveCategory, setActiveSubBankKey } from '../services/categoryStore'
 import GrammarToc from '../components/GrammarToc.vue'
 import rawNotes from '../content/grammar-notes.md?raw'
 
@@ -83,12 +83,6 @@ function openGrammar() {
 function selectMobileLesson(id: string) {
   mobileLesson.value = id
   nextTick(() => navigateTo(id))
-}
-
-function onGrammarScroll() {
-  if (window.scrollY < 60 && toc.value.length > 0) {
-    activeId.value = toc.value[0].id
-  }
 }
 
 function backToCatalog() {

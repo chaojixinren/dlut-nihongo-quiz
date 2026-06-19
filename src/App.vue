@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch, onMounted, onBeforeUnmount } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useActiveCategory, loadActiveCategory, setActiveCategory } from './services/categoryStore'
 import { getQuestionById } from './services/quizEngine'

@@ -19,7 +19,6 @@ import {
 import {
   useActiveCategory,
   loadActiveCategory,
-  getActiveSubBankKey,
   setActiveSubBankKey,
   useActiveSubBankKey,
 } from '../services/categoryStore'
