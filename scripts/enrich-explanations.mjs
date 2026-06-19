@@ -5,10 +5,13 @@
 // Japanese grammar question style.
 //
 // Usage:
-//   node scripts/enrich-explanations.mjs --limit 3       # dry-run, 3 per file
-//   node scripts/enrich-explanations.mjs --only party    # one category
-//   node scripts/enrich-explanations.mjs --force         # re-enrich already-done
-//   node scripts/enrich-explanations.mjs                 # full run, all 678
+//   node scripts/enrich-explanations.mjs --limit 3             # dry-run, 3 per file
+//   node scripts/enrich-explanations.mjs --only party          # one category
+//   node scripts/enrich-explanations.mjs --priority 2          # target 第N优先级 (party/military only)
+//   node scripts/enrich-explanations.mjs --only-ids "5,12,30"  # only specific in-scope indices (1-based)
+//   node scripts/enrich-explanations.mjs --force               # re-enrich already-done (combine with --only-ids)
+//   ENRICH_CONCURRENCY=20 node scripts/enrich-explanations.mjs # raise concurrency
+//   node scripts/enrich-explanations.mjs                       # full run, all in scope
 //
 // Env (read from .env or process.env):
 //   ANTHROPIC_AUTH_TOKEN          (required)
@@ -53,7 +56,24 @@ const argv = process.argv.slice(2)
 const limitFlag = argv.includes('--limit') ? parseInt(argv[argv.indexOf('--limit') + 1]) : 0
 const onlyFlagIdx = argv.indexOf('--only')
 const onlyFlag = onlyFlagIdx >= 0 ? argv[onlyFlagIdx + 1] : ''
+const priorityIdx = argv.indexOf('--priority')
+const priorityFlag = priorityIdx >= 0 ? parseInt(argv[priorityIdx + 1]) : 1
 const force = argv.includes('--force')
+// --only-ids "1,5,7" — only process these 1-based in-scope indices. Idempotency
+// still applies unless --force is also passed. Useful for retrying specific
+// failures without re-scanning the whole file.
+const onlyIdsIdx = argv.indexOf('--only-ids')
+const onlyIdsRaw = onlyIdsIdx >= 0 ? argv[onlyIdsIdx + 1] : ''
+const onlyIdsSet = onlyIdsRaw
+  ? new Set(onlyIdsRaw.split(',').map(s => parseInt(s.trim())).filter(n => Number.isFinite(n)))
+  : null
+
+// 第N优先级 → Chinese numeral. Party/military use this in section headers.
+const CN_NUMS = ['一', '二', '三', '四', '五']
+if (priorityFlag < 1 || priorityFlag > CN_NUMS.length) {
+  console.error(`✗ --priority must be between 1 and ${CN_NUMS.length}, got ${priorityFlag}`)
+  process.exit(1)
+}
 
 // ---------- File specs ----------
 const ROOT = path.resolve(__dirname, '..')
@@ -62,8 +82,7 @@ const FILES = [
   {
     name: 'party',
     path: 'data/raw/party/党史题库_按优先级整理.md',
-    sectionStart: /^##\s+第一优先级/,
-    sectionEnd: /^##\s+第二优先级/,
+    hasPrioritySections: true,
     // party: **N. stem**\n\nA. xxx\n\n**答案**：B\n\n**解析**：...\n\n---
     qHdr: /^\*\*\s*(\d+)\s*[\.、]\s*(.+?)\s*\*\*\s*$/,
     nextBoundary: l => /^\*\*\s*\d+\s*[\.、]/.test(l) || /^---\s*$/.test(l) || /^##\s/.test(l),
@@ -71,15 +90,15 @@ const FILES = [
   {
     name: 'military',
     path: 'data/raw/military/军理题库_按优先级整理.md',
-    sectionStart: /^##\s+第一优先级/,
-    sectionEnd: /^##\s+第二优先级/,
+    hasPrioritySections: true,
     qHdr: /^\*\*\s*(\d+)\s*[\.、]\s*(.+?)\s*\*\*\s*$/,
     nextBoundary: l => /^\*\*\s*\d+\s*[\.、]/.test(l) || /^---\s*$/.test(l) || /^##\s/.test(l),
   },
   {
     name: 'history',
+    aliases: ['history_t0'],
     path: 'data/raw/history/刷题单1-核心必刷（T0）.md',
-    sectionStart: null, // entire file is T0
+    sectionStart: null, // entire file is in scope
     sectionEnd: null,
     // history: #### N. stem  OR  > #### N. stem
     qHdr: /^(>?\s*)?####\s+(\d+)\s*[\.、]\s*(.+?)\s*$/,
@@ -88,7 +107,31 @@ const FILES = [
       return /^####\s+\d+\s*[\.、]/.test(t) || /^---\s*$/.test(t) || /^##\s/.test(t)
     },
   },
+  {
+    name: 'history_t1',
+    path: 'data/raw/history/刷题单2-重点掌握（T1）.md',
+    sectionStart: null,
+    sectionEnd: null,
+    qHdr: /^(>?\s*)?####\s+(\d+)\s*[\.、]\s*(.+?)\s*$/,
+    nextBoundary: l => {
+      const t = l.replace(/^>\s*/, '').trim()
+      return /^####\s+\d+\s*[\.、]/.test(t) || /^---\s*$/.test(t) || /^##\s/.test(t)
+    },
+  },
 ]
+
+// Resolve sectionStart/sectionEnd at runtime based on --priority for specs
+// that use the ## 第N优先级 structure.
+function resolveSections(spec) {
+  if (!spec.hasPrioritySections) return spec
+  const cn = CN_NUMS[priorityFlag - 1]
+  const nextCn = priorityFlag < CN_NUMS.length ? CN_NUMS[priorityFlag] : null
+  return {
+    ...spec,
+    sectionStart: new RegExp(`^##\\s+第${cn}优先级`),
+    sectionEnd: nextCn ? new RegExp(`^##\\s+第${nextCn}优先级`) : null,
+  }
+}
 
 // ---------- Question extraction ----------
 function findBlocks(lines, spec) {
@@ -117,9 +160,27 @@ function parseBlock(lines, block, spec) {
   const hdrLine = lines[block.hdrLineIdx]
   const hdrMatch = hdrLine.match(spec.qHdr)
   // For history: groups are [full, quotePrefix, num, stem]; for party/military: [full, num, stem]
-  const stem = spec.name === 'history' ? hdrMatch[3].trim() : hdrMatch[2].trim()
+  let stem = spec.name === 'history' || spec.name === 'history_t0' || spec.name === 'history_t1'
+    ? hdrMatch[3].trim()
+    : hdrMatch[2].trim()
 
   const body = lines.slice(block.bodyStartIdx, block.bodyEndIdx).map(l => l.replace(/^>\s*/, ''))
+
+  // T1 format: header is just "#### N. [来源：...]" — stem is on body lines.
+  // Detect this when the captured stem is only metadata (no actual question text).
+  // Replace it with the body lines preceding the first option/answer marker.
+  const looksLikeMetadata = /^\[来源[:：]|^【存疑|^<.*>$/.test(stem) || stem === ''
+  if (looksLikeMetadata) {
+    const parts = []
+    for (let i = 0; i < body.length; i++) {
+      const t = body[i].trim()
+      if (!t) { if (parts.length > 0) break; continue }
+      if (/^\*\*\s*答案/.test(t)) break
+      if (/^[A-E][\.、）)?]/.test(t)) break          // start of options
+      parts.push(t)
+    }
+    if (parts.length > 0) stem = parts.join(' ').trim()
+  }
 
   // Find answer line and explanation block within body
   let answerIdx = -1
@@ -260,10 +321,13 @@ ${template}
 }
 
 // ---------- API call ----------
+// Retries on (a) transport errors with 429/5xx status, AND (b) empty/invalid
+// outputs — DeepSeek occasionally returns a 200 with empty content under load,
+// which previously surfaced as a "failed" question requiring a full re-run.
 async function enrich(q, categoryName) {
   const prompt = buildPrompt(q, categoryName)
   let lastErr
-  for (let attempt = 0; attempt < 3; attempt++) {
+  for (let attempt = 0; attempt < 4; attempt++) {
     try {
       const resp = await client.messages.create({
         model: MODEL,
@@ -275,18 +339,22 @@ async function enrich(q, categoryName) {
         .map(b => b.text)
         .join('')
         .trim()
-      return text
+      if (isValidExplanation(text)) return text
+      // Empty / invalid 200-response: retry after backoff
+      await sleep(800 * (attempt + 1))
+      continue
     } catch (e) {
       lastErr = e
       const status = e?.status || e?.response?.status
       if (status === 429 || status >= 500) {
-        await sleep(1500 * (attempt + 1))
+        await sleep(1200 * (attempt + 1))
         continue
       }
       throw e
     }
   }
-  throw lastErr
+  if (lastErr) throw lastErr
+  return ''
 }
 
 const sleep = ms => new Promise(r => setTimeout(r, ms))
@@ -328,12 +396,18 @@ async function processFile(spec) {
   console.log(`  ${blocks.length} questions found in scope`)
 
   let processed = 0, skipped = 0, failed = 0
-  const targets = limitFlag > 0 ? blocks.slice(0, limitFlag) : blocks
+  let targets = blocks
+  if (onlyIdsSet) {
+    targets = blocks.filter((_, i) => onlyIdsSet.has(i + 1))
+    console.log(`  --only-ids: ${[...onlyIdsSet].sort((a,b)=>a-b).join(',')}`)
+  } else if (limitFlag > 0) {
+    targets = blocks.slice(0, limitFlag)
+  }
 
   // To avoid rewriting file after every question, collect replacements and apply once at end.
   // Track as: array of { startLine, endLine, newLines[] }
   const replacements = []
-  const concurrency = 4
+  const concurrency = parseInt(envOverrides.ENRICH_CONCURRENCY || process.env.ENRICH_CONCURRENCY || '8')
   let cursor = 0
 
   async function worker() {
@@ -358,7 +432,7 @@ async function processFile(spec) {
       const correctKey = normalizeAnswerLetter(parsed.answerText, parsed.options || [], type)
       if (!correctKey) { skipped++; continue }
 
-      const categoryName = { party: '中国共产党党史', military: '高校军事理论', history: '中国近现代史纲要' }[spec.name]
+      const categoryName = { party: '中国共产党党史', military: '高校军事理论', history: '中国近现代史纲要', history_t0: '中国近现代史纲要', history_t1: '中国近现代史纲要' }[spec.name]
       const label = `[${spec.name}#${myIdx + 1}]`
 
       try {
@@ -399,9 +473,6 @@ async function processFile(spec) {
         console.log(`  ✗ ${label} API error: ${e.message?.slice(0, 120)}`)
         failed++
       }
-
-      // Tiny delay between calls within a worker
-      await sleep(150)
     }
   }
 
@@ -423,9 +494,19 @@ async function processFile(spec) {
 
 async function main() {
   console.log(`Model: ${MODEL}\nBase URL: ${BASE_URL}`)
-  console.log(`Mode: ${limitFlag > 0 ? `limit=${limitFlag} per file` : 'full'}${force ? ' +force' : ''}${onlyFlag ? ` +only=${onlyFlag}` : ''}`)
+  const concurrency = parseInt(envOverrides.ENRICH_CONCURRENCY || process.env.ENRICH_CONCURRENCY || '8')
+  const modeParts = []
+  if (onlyIdsSet) modeParts.push(`only-ids=${onlyIdsRaw}`)
+  else if (limitFlag > 0) modeParts.push(`limit=${limitFlag} per file`)
+  else modeParts.push('full')
+  if (force) modeParts.push('force')
+  if (onlyFlag) modeParts.push(`only=${onlyFlag}`)
+  if (priorityFlag !== 1) modeParts.push(`priority=${priorityFlag}`)
+  console.log(`Mode: ${modeParts.join(' +')} (concurrency=${concurrency})`)
 
-  const specs = onlyFlag ? FILES.filter(s => s.name === onlyFlag) : FILES
+  const specs = onlyFlag
+    ? FILES.filter(s => s.name === onlyFlag || (s.aliases || []).includes(onlyFlag))
+    : FILES
   if (specs.length === 0) {
     console.error(`✗ no file matched --only ${onlyFlag}`)
     process.exit(1)
@@ -433,7 +514,8 @@ async function main() {
 
   const summary = { processed: 0, skipped: 0, failed: 0 }
   for (const spec of specs) {
-    const r = await processFile(spec)
+    const resolved = resolveSections(spec)
+    const r = await processFile(resolved)
     summary.processed += r.processed
     summary.skipped += r.skipped
     summary.failed += r.failed

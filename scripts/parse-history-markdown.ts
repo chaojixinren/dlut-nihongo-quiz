@@ -70,6 +70,8 @@ function parseOptionsFromLine(line: string): { key: string; text: string } | nul
 
 function cleanStem(stem: string): string {
   let s = stem.replace(/\s+/g, ' ').trim()
+  // T1 headers carry a "[来源：xxx.md]" tag as the only header text; drop it.
+  s = s.replace(/\[来源[：:].*?\]\s*/g, '').trim()
   // T5 inline answer hints come in two flavours: "（C）" and a bare trailing " C".
   s = s.replace(/[（(]\s*([A-E])\s*[)）]/g, '').trim()
   s = s.replace(/\s+([A-E])$/, '').trim()
