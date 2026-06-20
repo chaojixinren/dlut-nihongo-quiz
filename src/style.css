@@ -391,6 +391,8 @@ select {
 @media (max-width: 639px) {
   .markdown-body {
     font-size: 14.5px;
+    overflow-wrap: break-word;
+    word-break: break-word;
   }
   .markdown-body h1 {
     font-size: 21px;
@@ -408,6 +410,19 @@ select {
   .markdown-body thead th,
   .markdown-body tbody td {
     padding: 7px 10px;
+  }
+  .markdown-body table {
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* Global mobile anti-overflow */
+@media (max-width: 480px) {
+  body {
+    overflow-wrap: break-word;
+    word-break: break-word;
   }
 }
 

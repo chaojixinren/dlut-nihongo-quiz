@@ -15,6 +15,19 @@ const BANK_FILES: Record<Category, string> = CATEGORIES.reduce(
   {} as Record<Category, string>,
 )
 
+// 里站专属 groupId：所有「非 textbook」subBank 的 groupOrder 并集。
+// 表站未解锁时，所有表站页面与答题流都应过滤掉这些题。
+export const HIDDEN_GROUP_IDS: ReadonlySet<string> = new Set(
+  CATEGORIES.flatMap((c) => c.subBanks ?? [])
+    .filter((sb) => sb.key !== 'textbook')
+    .flatMap((sb) => sb.groupOrder),
+)
+
+export function filterVisibleQuestions(questions: Question[], isUnlocked: boolean): Question[] {
+  if (isUnlocked) return questions
+  return questions.filter((q) => !HIDDEN_GROUP_IDS.has(q.groupId))
+}
+
 export function shuffleQuestionOptions(q: Question): Question {
   if (q.multiAnswer) return q
   const correctOpt = q.options.find((o) => o.key === q.answerKey)
@@ -188,11 +201,14 @@ export interface RelevantData {
 export async function getRelevantData(
   category: Category,
   allStats?: QuestionStats[],
+  options?: { isUnlocked?: boolean },
 ): Promise<RelevantData> {
-  const [questions, stats] = await Promise.all([
+  const [allQuestions, stats] = await Promise.all([
     loadQuestionBank(category),
     allStats ?? import('../db/database').then((m) => m.db.questionStats.toArray()),
   ])
+  const questions =
+    options?.isUnlocked === false ? filterVisibleQuestions(allQuestions, false) : allQuestions
   const validIds = new Set(questions.map((q) => q.id))
   const filtered = stats.filter((s) => validIds.has(s.questionId))
   return { questions, stats: filtered, statsMap: new Map(filtered.map((s) => [s.questionId, s])) }

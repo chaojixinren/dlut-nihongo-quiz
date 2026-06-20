@@ -18,6 +18,9 @@ defineEmits<{ click: [tag: string] }>()
   transition: all 0.15s;
   border: 1px solid transparent;
   line-height: 1.5;
+  max-width: 100%;
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 .tag-badge.active {
   background: var(--accent);

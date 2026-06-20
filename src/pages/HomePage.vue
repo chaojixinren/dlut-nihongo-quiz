@@ -2,7 +2,12 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useHiddenSite } from '../composables/useHiddenSite'
-import { loadQuestionBank, getAllTags, getAllGroups, getCategoryMeta } from '../services/quizEngine'
+import {
+  loadQuestionBank,
+  getAllGroups,
+  getCategoryMeta,
+  filterVisibleQuestions,
+} from '../services/quizEngine'
 import {
   getWeakTags,
   getMasterySummary,
@@ -65,8 +70,14 @@ const groupStats = ref<
 async function refresh() {
   loading.value = true
   const cat = activeCategory.value
+  const unlocked = isUnlocked.value
   // 一次拿到题库 + 全表 stats，所有下游函数共享同一份数据，避免重复扫描
-  const [all, allStatsArr] = await Promise.all([loadQuestionBank(cat), db.questionStats.toArray()])
+  const [rawAll, allStatsArr] = await Promise.all([
+    loadQuestionBank(cat),
+    db.questionStats.toArray(),
+  ])
+  // 表站未解锁时，剔除里站专属 groupId（g11/g21–g28），避免 tag、薄弱、掌握度被污染。
+  const all = filterVisibleQuestions(rawAll, unlocked)
   questions.value = all
   totalQuestions.value = all.length
 
@@ -104,10 +115,10 @@ async function refresh() {
 
   // 4 个 reviewScheduler 函数共用一份 stats，避免再扫 4 次
   const [weak, mast, wrong, untouched] = await Promise.all([
-    getWeakTags(cat, allStatsArr),
-    getMasterySummary(cat, allStatsArr),
-    getWrongQuestionIds(cat, allStatsArr),
-    getUntouchedQuestionIds(cat, allStatsArr),
+    getWeakTags(cat, allStatsArr, { isUnlocked: unlocked }),
+    getMasterySummary(cat, allStatsArr, { isUnlocked: unlocked }),
+    getWrongQuestionIds(cat, allStatsArr, { isUnlocked: unlocked }),
+    getUntouchedQuestionIds(cat, allStatsArr, { isUnlocked: unlocked }),
   ])
   weakTags.value = weak
   mastery.value = mast
@@ -157,6 +168,11 @@ onMounted(async () => {
 })
 
 watch(activeCategory, () => {
+  refresh()
+})
+
+// 里站解锁/锁定切换时，可见题集改变，需要重算 tag、薄弱、掌握度等。
+watch(isUnlocked, () => {
   refresh()
 })
 
@@ -218,8 +234,7 @@ const isGroupView = computed(
     (hasSubBanks.value && Boolean(activeSubBankKey.value)),
 )
 const titleText = computed(() => {
-  if (meta.value.long === '日语语法' && currentSubBank.value)
-    return currentSubBank.value.name
+  if (meta.value.long === '日语语法' && currentSubBank.value) return currentSubBank.value.name
   return meta.value.long === '日语语法' ? '日语期末复习题库' : meta.value.long
 })
 const subtitleText = computed(() => {
@@ -244,6 +259,18 @@ const subtitleText = computed(() => {
 const tagSectionTitle = computed(() =>
   activeCategory.value === 'word' ? '按课/标签复习' : '按语法标签复习',
 )
+// 标签云直接基于已过滤的 questions.value 计算，避开 getAllTags 的全量缓存，
+// 保证表站看不到「2021真题」「阅读理解」等里站专属 tag。
+const visibleTags = computed(() => {
+  const map = new Map<string, number>()
+  for (const q of questions.value) {
+    for (const t of q.tags) map.set(t, (map.get(t) || 0) + 1)
+  }
+  return [...map.entries()]
+    .map(([tag, count]) => ({ tag, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 20)
+})
 const weakSectionTitle = computed(() =>
   activeCategory.value === 'word' ? '薄弱课/标签' : '薄弱语法点',
 )
@@ -415,7 +442,11 @@ const groupViewHint = computed(() => {
     </section>
 
     <!-- Grammar notes entry — only visible when unlocked -->
-    <section v-if="isUnlocked && activeCategory === 'grammar'" class="grammar-entry-card" @click="router.push('/grammar-notes')">
+    <section
+      v-if="isUnlocked && activeCategory === 'grammar'"
+      class="grammar-entry-card"
+      @click="router.push('/grammar-notes')"
+    >
       <div class="ge-icon" aria-hidden="true">文</div>
       <div class="ge-body">
         <div class="ge-title">核心语法整理</div>
@@ -436,12 +467,15 @@ const groupViewHint = computed(() => {
             class="subbank-card"
             @click="selectSubBank(sb.key)"
           >
-            <div class="sb-icon">{{ sb.key === 'textbook' ? '文' : sb.key === '2021' ? '試' : '卷' }}</div>
+            <div class="sb-icon">
+              {{ sb.key === 'textbook' ? '文' : sb.key === '2021' ? '試' : '卷' }}
+            </div>
             <div class="sb-body">
               <div class="sb-title">{{ sb.name }}</div>
               <div class="sb-desc">{{ sb.desc }}</div>
               <div class="sb-meta">
-                {{ questions.filter((q) => sb.groupOrder.includes(q.groupId)).length }} 题 · {{ sb.groupOrder.length }} 个分组
+                {{ questions.filter((q) => sb.groupOrder.includes(q.groupId)).length }} 题 ·
+                {{ sb.groupOrder.length }} 个分组
               </div>
             </div>
             <div class="sb-arrow">→</div>
@@ -462,10 +496,18 @@ const groupViewHint = computed(() => {
             <p class="full-set-desc">{{ currentSubBank?.desc }}</p>
           </div>
           <div class="full-set-actions">
-            <button class="btn btn-accent" @click="startSubBankFull('sequential')">刷整套 · 顺序</button>
-            <button class="btn btn-outline" @click="startSubBankFull('random')">刷整套 · 随机</button>
-            <button class="btn btn-outline" @click="startSubBankFull('untouched')">未做 · 顺序</button>
-            <button class="btn btn-outline danger" @click="startSubBankFull('wrong')">错题 · 顺序</button>
+            <button class="btn btn-accent" @click="startSubBankFull('sequential')">
+              刷整套 · 顺序
+            </button>
+            <button class="btn btn-outline" @click="startSubBankFull('random')">
+              刷整套 · 随机
+            </button>
+            <button class="btn btn-outline" @click="startSubBankFull('untouched')">
+              未做 · 顺序
+            </button>
+            <button class="btn btn-outline danger" @click="startSubBankFull('wrong')">
+              错题 · 顺序
+            </button>
           </div>
         </div>
       </section>
@@ -574,7 +616,7 @@ const groupViewHint = computed(() => {
       <h2>{{ tagSectionTitle }}</h2>
       <div class="tag-cloud">
         <TagBadge
-          v-for="t in getAllTags(activeCategory).slice(0, 20)"
+          v-for="t in visibleTags"
           :key="t.tag"
           :tag="t.tag"
           :clickable="true"
@@ -784,7 +826,11 @@ h1 {
   background: var(--bg-card);
   border: 1px solid var(--border);
   cursor: pointer;
-  transition: border-color 0.18s, background 0.18s, transform 0.18s, box-shadow 0.18s;
+  transition:
+    border-color 0.18s,
+    background 0.18s,
+    transform 0.18s,
+    box-shadow 0.18s;
 }
 .subbank-card:hover {
   border-color: var(--accent);
@@ -879,7 +925,9 @@ h1 {
 /* ---- Transition ---- */
 .sb-fade-enter-active,
 .sb-fade-leave-active {
-  transition: opacity 0.2s ease, transform 0.2s ease;
+  transition:
+    opacity 0.2s ease,
+    transform 0.2s ease;
 }
 .sb-fade-enter-from {
   opacity: 0;
@@ -902,7 +950,9 @@ h1 {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  transition: border-color 0.15s, box-shadow 0.15s;
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s;
 }
 .group-card:hover {
   border-color: var(--accent);

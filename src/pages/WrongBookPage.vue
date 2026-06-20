@@ -5,12 +5,14 @@ import { getRelevantData, getQuestionById } from '../services/quizEngine'
 import { isWrong } from '../services/reviewScheduler'
 import { db } from '../db/database'
 import { useActiveCategory, loadActiveCategory } from '../services/categoryStore'
+import { useHiddenSite } from '../composables/useHiddenSite'
 import { truncate } from '../utils/text'
 import { stripMarkdown } from '../utils/renderMarkdown'
 import type { QuestionStats } from '../types/question'
 
 const router = useRouter()
 const activeCategory = useActiveCategory()
+const { isUnlocked } = useHiddenSite()
 const wrongItems = ref<{ questionId: string; stats: QuestionStats; stem: string; group: string }[]>(
   [],
 )
@@ -21,7 +23,9 @@ const confirmingId = ref<string | null>(null)
 let confirmTimeout: ReturnType<typeof setTimeout> | null = null
 
 async function refreshList() {
-  const { stats } = await getRelevantData(activeCategory.value)
+  const { stats } = await getRelevantData(activeCategory.value, undefined, {
+    isUnlocked: isUnlocked.value,
+  })
   wrongItems.value = stats.filter(isWrong).map((s) => {
     const q = getQuestionById(s.questionId)
     return { questionId: s.questionId, stats: s, stem: q?.stem || '', group: q?.groupTitle || '' }
@@ -34,6 +38,10 @@ onMounted(async () => {
 })
 
 watch(activeCategory, () => {
+  refreshList()
+})
+
+watch(isUnlocked, () => {
   refreshList()
 })
 watch(filter, () => {

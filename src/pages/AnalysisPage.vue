@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, watch } from 'vue'
-import { getRelevantData, getAllGrammarPoints, getQuestionById } from '../services/quizEngine'
+import { getRelevantData, getQuestionById } from '../services/quizEngine'
 import { useActiveCategory, loadActiveCategory } from '../services/categoryStore'
+import { useHiddenSite } from '../composables/useHiddenSite'
 import { db } from '../db/database'
 import { truncate } from '../utils/text'
 import { stripMarkdown } from '../utils/renderMarkdown'
@@ -9,6 +10,7 @@ import PageSkeleton from '../components/PageSkeleton.vue'
 import type { QuestionStats, Question, Attempt } from '../types/question'
 
 const activeCategory = useActiveCategory()
+const { isUnlocked } = useHiddenSite()
 const questions = ref<Question[]>([])
 const stats = ref<QuestionStats[]>([])
 const attempts = ref<Attempt[]>([])
@@ -18,7 +20,7 @@ const loading = ref(true)
 async function refresh() {
   loading.value = true
   const [relevant, allAttempts] = await Promise.all([
-    getRelevantData(activeCategory.value),
+    getRelevantData(activeCategory.value, undefined, { isUnlocked: isUnlocked.value }),
     db.attempts.toArray(),
   ])
   questions.value = relevant.questions
@@ -37,6 +39,11 @@ onMounted(async () => {
 })
 
 watch(activeCategory, () => {
+  refresh()
+})
+
+// 里站解锁/锁定切换时，可见题集改变，需要重算分析数据。
+watch(isUnlocked, () => {
   refresh()
 })
 
@@ -65,14 +72,23 @@ const groupAnalysis = computed(() => {
 })
 
 const tagAnalysis = computed(() => {
-  const points = getAllGrammarPoints(activeCategory.value)
+  // 候选列表基于已过滤的 questions.value，避开 getAllGrammarPoints 的全量缓存——
+  // 否则表站会看到「被动形」「授受动词」等只在 g11/g21+ 出现的语法点。
   const tagSource =
     activeCategory.value === 'word'
       ? questions.value
           .flatMap((q) => q.tags)
           .filter((t) => t !== '单词')
           .map((t) => ({ point: t, count: 0 }))
-      : points
+      : (() => {
+          const counts = new Map<string, number>()
+          for (const q of questions.value) {
+            for (const gp of q.grammarPoints) counts.set(gp, (counts.get(gp) || 0) + 1)
+          }
+          return [...counts.entries()]
+            .sort((a, b) => b[1] - a[1])
+            .map(([point, count]) => ({ point, count }))
+        })()
   const seen = new Set<string>()
   const deduped = tagSource
     .filter((p) => {

@@ -1,6 +1,6 @@
 import type { Category, QuestionStats } from '../types/question'
 import { db } from '../db/database'
-import { loadQuestionBank, getRelevantData } from './quizEngine'
+import { loadQuestionBank, getRelevantData, filterVisibleQuestions } from './quizEngine'
 
 export interface Recommendation {
   tag: string
@@ -39,6 +39,7 @@ export function isReviewDue(s: QuestionStats, now: Date = new Date()): boolean {
 export async function getWeakTags(
   category: Category = 'grammar',
   _allStats?: QuestionStats[],
+  options?: { isUnlocked?: boolean },
 ): Promise<Recommendation[]> {
   // tagStats 与 questionStats 不在同一张表，无法共享预扫描；保留可选参数仅为 API 对齐其他函数。
   void _allStats
@@ -46,8 +47,9 @@ export async function getWeakTags(
     db.tagStats.toArray(),
     loadQuestionBank(category),
   ])
+  const visibleQuestions = filterVisibleQuestions(allQuestions, options?.isUnlocked !== false)
   const tagsInBank = new Set<string>()
-  for (const q of allQuestions) {
+  for (const q of visibleQuestions) {
     for (const t of q.tags) tagsInBank.add(t)
     for (const g of q.grammarPoints) tagsInBank.add(g)
   }
@@ -72,8 +74,9 @@ export async function getWeakTags(
 export async function getReviewQueue(
   category: Category = 'grammar',
   allStats?: QuestionStats[],
+  options?: { isUnlocked?: boolean },
 ): Promise<string[]> {
-  const { stats } = await getRelevantData(category, allStats)
+  const { stats } = await getRelevantData(category, allStats, options)
   const scored: { id: string; score: number }[] = []
   for (const s of stats) {
     let score = 0
@@ -91,8 +94,9 @@ export async function getReviewQueue(
 export async function getWrongQuestionIds(
   category: Category = 'grammar',
   allStats?: QuestionStats[],
+  options?: { isUnlocked?: boolean },
 ): Promise<string[]> {
-  const { stats } = await getRelevantData(category, allStats)
+  const { stats } = await getRelevantData(category, allStats, options)
   return stats
     .filter(isWrong)
     .sort((a, b) => b.wrongCount - a.wrongCount)
@@ -102,8 +106,9 @@ export async function getWrongQuestionIds(
 export async function getUntouchedQuestionIds(
   category: Category = 'grammar',
   allStats?: QuestionStats[],
+  options?: { isUnlocked?: boolean },
 ): Promise<string[]> {
-  const { questions, statsMap } = await getRelevantData(category, allStats)
+  const { questions, statsMap } = await getRelevantData(category, allStats, options)
   return questions
     .filter((q) => !statsMap.has(q.id) || statsMap.get(q.id)!.attemptCount === 0)
     .map((q) => q.id)
@@ -112,8 +117,9 @@ export async function getUntouchedQuestionIds(
 export async function getMasterySummary(
   category: Category = 'grammar',
   allStats?: QuestionStats[],
+  options?: { isUnlocked?: boolean },
 ): Promise<{ mastered: number; learning: number; weak: number; untouched: number }> {
-  const { questions, stats } = await getRelevantData(category, allStats)
+  const { questions, stats } = await getRelevantData(category, allStats, options)
   const total = questions.length
   let mastered = 0,
     learning = 0,
