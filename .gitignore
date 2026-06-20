@@ -59,3 +59,15 @@ src/components/HelloWorld.vue
 # Brainstorming/planning docs (internal, not user-facing)
 docs/superpowers/
 .superpowers/
+
+# Dev screenshots and notes (grammar/quiz iteration artifacts)
+grammar-*.md
+grammar-*.png
+quiz-*.png
+
+# Backup files
+*.bak
+
+# One-off helper scripts (underscore prefix convention)
+scripts/_*.cjs
+scripts/_*.mjs
