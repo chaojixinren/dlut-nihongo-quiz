@@ -273,7 +273,10 @@ const hiddenCards = [
   background: var(--bg-card);
   border: 1px solid var(--border);
   cursor: pointer;
-  transition: all 0.2s;
+  transition:
+    border-color 0.22s var(--ease-ink),
+    transform 0.22s var(--ease-ink),
+    background 0.22s var(--ease-ink);
   font-family: inherit;
   color: var(--text-primary);
 }
@@ -323,7 +326,7 @@ const hiddenCards = [
   cursor: pointer;
   padding: 0;
   margin-bottom: 16px;
-  transition: color 0.12s;
+  transition: color 0.18s var(--ease-ink);
   display: block;
 }
 .grammar-back:hover {
@@ -424,7 +427,10 @@ const hiddenCards = [
   letter-spacing: 4px;
   padding: 8px 24px;
   cursor: pointer;
-  transition: all 0.2s;
+  transition:
+    color 0.2s var(--ease-ink),
+    border-color 0.2s var(--ease-ink),
+    background 0.2s var(--ease-ink);
 }
 .exit-btn:hover {
   color: var(--accent);

@@ -40,14 +40,14 @@ const subjects = computed(() =>
   <div class="landing">
     <!-- Hero -->
     <section class="hero">
-      <div class="hero-badge">DLUT · 国际信息与软件学院</div>
-      <h1 class="hero-title">题库</h1>
-      <p class="hero-sub">日语语法词汇 · 近代史 · 党史 · 军事理论<br />一体化期末复习平台</p>
-      <p class="hero-desc">
+      <div class="hero-badge stagger-1">DLUT · 国际信息与软件学院</div>
+      <h1 class="hero-title stagger-2">题库</h1>
+      <p class="hero-sub stagger-3">日语语法词汇 · 近代史 · 党史 · 军事理论<br />一体化期末复习平台</p>
+      <p class="hero-desc stagger-4">
         覆盖 {{ totalQuestions.toLocaleString() }} 道题目，内置智能错题本、掌握度追踪、薄弱点分析。
         键盘驱动，高效刷题。
       </p>
-      <div class="hero-actions">
+      <div class="hero-actions stagger-5">
         <button class="btn btn-accent btn-lg" @click="quickStart">开始复习</button>
         <button class="btn btn-outline btn-lg" @click="router.push('/settings')">了解更多</button>
       </div>
@@ -162,6 +162,13 @@ const subjects = computed(() =>
   font-size: 13px;
   color: var(--text-muted);
   margin-bottom: 28px;
+  transition:
+    border-color 0.25s var(--ease-ink),
+    color 0.25s var(--ease-ink);
+}
+.hero-badge:hover {
+  border-color: var(--accent);
+  color: var(--accent);
 }
 .hero-title {
   font-family: var(--font-display);
@@ -249,13 +256,33 @@ const subjects = computed(() =>
   gap: 20px;
   padding: 20px 24px;
   border: 1px solid var(--border);
+  border-left: 3px solid var(--border);
   background: var(--bg-card);
   cursor: pointer;
-  transition: all 0.15s;
+  transition:
+    border-color 0.25s var(--ease-ink),
+    border-left-color 0.25s var(--ease-ink),
+    background 0.25s var(--ease-ink),
+    transform 0.25s var(--ease-ink);
+  position: relative;
+}
+.subject-card::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border: 1px solid transparent;
+  transition: border-color 0.3s var(--ease-ink);
+  pointer-events: none;
+  z-index: -1;
 }
 .subject-card:hover {
   border-color: var(--accent);
-  transform: translateX(4px);
+  border-left-color: var(--accent);
+  transform: translateX(6px);
+  background: var(--bg-hover);
+}
+.subject-card:hover::before {
+  border-color: var(--accent);
 }
 .sc-icon {
   width: 48px;
@@ -268,6 +295,13 @@ const subjects = computed(() =>
   color: var(--accent);
   border: 1px solid var(--border);
   flex-shrink: 0;
+  transition:
+    border-color 0.25s var(--ease-ink),
+    background 0.25s var(--ease-ink);
+}
+.subject-card:hover .sc-icon {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
 }
 .sc-body {
   flex: 1;
@@ -291,6 +325,13 @@ const subjects = computed(() =>
 .sc-arrow {
   color: var(--text-muted);
   font-size: 18px;
+  transition:
+    transform 0.25s var(--ease-brush),
+    color 0.25s var(--ease-ink);
+}
+.subject-card:hover .sc-arrow {
+  transform: translateX(4px);
+  color: var(--accent);
 }
 
 /* Features */
@@ -314,6 +355,14 @@ const subjects = computed(() =>
   padding: 20px;
   border: 1px solid var(--border);
   background: var(--bg-card);
+  transition:
+    border-color 0.22s var(--ease-ink),
+    background 0.22s var(--ease-ink),
+    transform 0.22s var(--ease-ink);
+}
+.feature-card:hover {
+  border-color: var(--accent);
+  transform: translateY(-2px);
 }
 .feature-card h3 {
   font-family: var(--font-display);
@@ -363,6 +412,7 @@ const subjects = computed(() =>
 }
 .footer-row a {
   color: var(--text-secondary);
+  transition: color 0.18s var(--ease-ink);
 }
 .footer-row a:hover {
   color: var(--accent);

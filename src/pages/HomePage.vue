@@ -722,7 +722,7 @@ h1 {
   font-size: 12px;
   color: #fff;
   min-width: 0;
-  transition: flex 0.4s ease;
+  transition: flex 0.55s var(--ease-brush);
 }
 .mastered {
   background: var(--correct);
@@ -762,10 +762,15 @@ h1 {
   border: 1px solid var(--border);
   background: var(--bg-card);
   cursor: pointer;
-  transition: all 0.12s;
+  transition:
+    border-color 0.22s var(--ease-ink),
+    background 0.22s var(--ease-ink),
+    transform 0.22s var(--ease-ink);
 }
 .weak-item:hover {
   border-color: var(--accent);
+  background: var(--bg-hover);
+  transform: translateX(4px);
 }
 .weak-info {
   min-width: 140px;
@@ -788,7 +793,7 @@ h1 {
 }
 .weak-bar {
   height: 100%;
-  transition: width 0.3s;
+  transition: width 0.45s var(--ease-brush);
 }
 .weak-arrow {
   color: var(--text-muted);
@@ -825,18 +830,19 @@ h1 {
   padding: 18px 22px;
   background: var(--bg-card);
   border: 1px solid var(--border);
+  border-left: 3px solid var(--border);
   cursor: pointer;
   transition:
-    border-color 0.18s,
-    background 0.18s,
-    transform 0.18s,
-    box-shadow 0.18s;
+    border-color 0.25s var(--ease-ink),
+    border-left-color 0.25s var(--ease-ink),
+    background 0.25s var(--ease-ink),
+    transform 0.25s var(--ease-ink);
 }
 .subbank-card:hover {
   border-color: var(--accent);
+  border-left-color: var(--accent);
   background: var(--bg-hover);
-  transform: translateX(3px);
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+  transform: translateX(6px);
 }
 .sb-icon {
   font-family: var(--font-display);
@@ -875,10 +881,10 @@ h1 {
   font-size: 18px;
   color: var(--accent);
   flex-shrink: 0;
-  transition: transform 0.18s;
+  transition: transform 0.25s var(--ease-brush);
 }
 .subbank-card:hover .sb-arrow {
-  transform: translateX(3px);
+  transform: translateX(4px);
 }
 
 /* ---- Full-set bar ---- */
@@ -923,11 +929,15 @@ h1 {
 }
 
 /* ---- Transition ---- */
-.sb-fade-enter-active,
+.sb-fade-enter-active {
+  transition:
+    opacity 0.24s var(--ease-page),
+    transform 0.28s var(--ease-page);
+}
 .sb-fade-leave-active {
   transition:
-    opacity 0.2s ease,
-    transform 0.2s ease;
+    opacity 0.14s var(--ease-ink),
+    transform 0.16s var(--ease-ink);
 }
 .sb-fade-enter-from {
   opacity: 0;
@@ -951,12 +961,12 @@ h1 {
   flex-direction: column;
   gap: 10px;
   transition:
-    border-color 0.15s,
-    box-shadow 0.15s;
+    border-color 0.22s var(--ease-ink),
+    transform 0.22s var(--ease-ink);
 }
 .group-card:hover {
   border-color: var(--accent);
-  box-shadow: 0 1px 8px rgba(0, 0, 0, 0.05);
+  transform: translateY(-2px);
 }
 .gc-header {
   display: flex;
@@ -1001,14 +1011,23 @@ h1 {
   border-left: 3px solid var(--accent);
   cursor: pointer;
   transition:
-    border-color 0.15s,
-    background 0.15s,
-    transform 0.15s;
+    border-color 0.22s var(--ease-ink),
+    background 0.22s var(--ease-ink),
+    transform 0.22s var(--ease-ink);
 }
 .grammar-entry-card:hover {
   border-color: var(--accent);
   background: var(--bg-hover);
-  transform: translateX(2px);
+  transform: translateX(4px);
+}
+.ge-arrow {
+  font-size: 18px;
+  color: var(--accent);
+  flex-shrink: 0;
+  transition: transform 0.25s var(--ease-brush);
+}
+.grammar-entry-card:hover .ge-arrow {
+  transform: translateX(3px);
 }
 .ge-icon {
   font-family: var(--font-display);
@@ -1039,10 +1058,5 @@ h1 {
 .ge-sub {
   font-size: 13px;
   color: var(--text-secondary);
-}
-.ge-arrow {
-  font-size: 18px;
-  color: var(--accent);
-  flex-shrink: 0;
 }
 </style>

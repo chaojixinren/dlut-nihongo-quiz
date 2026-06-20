@@ -201,7 +201,10 @@ const scopeLabel = () => (scopeAll.value ? '全库' : getCategoryMeta(activeCate
   padding: 4px 10px;
   cursor: pointer;
   flex-shrink: 0;
-  transition: all 0.12s;
+  transition:
+    background 0.18s var(--ease-ink),
+    color 0.18s var(--ease-ink),
+    border-color 0.18s var(--ease-ink);
   min-width: 56px;
 }
 

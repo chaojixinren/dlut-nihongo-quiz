@@ -199,7 +199,9 @@ h1 {
   color: var(--accent);
   padding: 3px 14px;
   border: 1px solid var(--border);
-  transition: border-color 0.12s;
+  transition:
+    border-color 0.18s var(--ease-ink),
+    color 0.18s var(--ease-ink);
 }
 
 .action-row {

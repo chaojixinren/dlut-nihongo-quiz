@@ -121,7 +121,7 @@ function onPointerUp(_e: PointerEvent) {
   height: 4px;
   background: var(--accent);
   border-radius: 2px;
-  transition: width 0.25s cubic-bezier(0.22, 0.68, 0.25, 1);
+  transition: width 0.3s var(--ease-drawer);
   pointer-events: none;
 }
 .progress-bar.dragging .fill {
@@ -137,8 +137,8 @@ function onPointerUp(_e: PointerEvent) {
   background: var(--accent);
   transform: translateY(-50%) scale(1);
   transition:
-    transform 0.18s,
-    left 0.25s cubic-bezier(0.22, 0.68, 0.25, 1);
+    transform 0.2s var(--ease-ink),
+    left 0.3s var(--ease-drawer);
   box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 30%, transparent);
   pointer-events: none;
 }
@@ -147,7 +147,7 @@ function onPointerUp(_e: PointerEvent) {
 }
 .progress-bar.dragging .thumb {
   transform: translateY(-50%) scale(1.35);
-  transition: transform 0.18s;
+  transition: transform 0.15s var(--ease-ink);
   box-shadow: 0 0 0 6px color-mix(in srgb, var(--accent) 18%, transparent);
 }
 
@@ -176,11 +176,15 @@ function onPointerUp(_e: PointerEvent) {
   background: var(--text-primary);
 }
 
-.tip-enter-active,
+.tip-enter-active {
+  transition:
+    transform 0.2s var(--ease-brush),
+    opacity 0.18s var(--ease-ink);
+}
 .tip-leave-active {
   transition:
-    transform 0.18s ease,
-    opacity 0.18s ease;
+    transform 0.15s var(--ease-ink),
+    opacity 0.12s var(--ease-ink);
 }
 .tip-enter-from,
 .tip-leave-to {

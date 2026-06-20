@@ -47,6 +47,7 @@ const mode = ref('')
 const startTime = ref(0)
 const finished = ref(false)
 const bookmarked = ref(false)
+const bookmarkCache = ref<Set<string>>(new Set())
 const startedAt = ref('')
 const elapsedTime = ref(0)
 const timerInterval = ref<ReturnType<typeof setInterval> | null>(null)
@@ -167,6 +168,10 @@ onMounted(async () => {
   const cat = activeCategory.value
   // 表站未解锁时剔除里站题（g11/g21–g28）。里站入口设了 subBank 后 isUnlocked 必为 true，no-op。
   const all = filterVisibleQuestions(await loadQuestionBank(cat), isUnlocked.value)
+
+  // preload bookmark status so the watch on currentQuestion doesn't hit IndexedDB
+  const allStats = await db.questionStats.toArray()
+  bookmarkCache.value = new Set(allStats.filter((s) => s.isBookmarked).map((s) => s.questionId))
 
   if (route.query.resume === '1') {
     const saved = await loadActiveSession()
@@ -300,7 +305,7 @@ function saveCurrentDraft() {
   }
 }
 
-async function jumpTo(i: number) {
+function jumpTo(i: number) {
   if (i === currentIndex.value || i < 0 || i >= questions.value.length) return
   saveCurrentDraft()
   slideDirection.value = i > currentIndex.value ? 'slide-left' : 'slide-right'
@@ -309,36 +314,34 @@ async function jumpTo(i: number) {
   submitted.value = false
   selectedKey.value = h ? h.selectedKey : (drafts.value.get(i) ?? '')
   startTime.value = Date.now()
-  await saveActiveSession(snapshot(false))
+  saveActiveSession(snapshot(false)) // fire-and-forget, don't block the transition
 }
 
-async function handleNext() {
+function handleNext() {
   if (currentIndex.value >= questions.value.length - 1) {
     finished.value = true
     stopTimer()
-    await clearActiveSession()
+    clearActiveSession()
     return
   }
   slideDirection.value = 'slide-left'
-  await jumpTo(currentIndex.value + 1)
+  jumpTo(currentIndex.value + 1)
 }
 
-async function handlePrev() {
+function handlePrev() {
   if (currentIndex.value <= 0) return
   slideDirection.value = 'slide-right'
-  await jumpTo(currentIndex.value - 1)
+  jumpTo(currentIndex.value - 1)
 }
 
 function handleSwipePrev() {
   if (currentIndex.value <= 0) return
-  void handlePrev()
+  handlePrev()
 }
 
 function handleSwipeNext() {
-  if (currentIndex.value >= questions.value.length - 1) {
-    return
-  }
-  void handleNext()
+  if (currentIndex.value >= questions.value.length - 1) return
+  handleNext()
 }
 
 async function handleBookmark() {
@@ -346,6 +349,11 @@ async function handleBookmark() {
   if (!q) return
   const next = !bookmarked.value
   bookmarked.value = next
+  if (next) {
+    bookmarkCache.value.add(q.id)
+  } else {
+    bookmarkCache.value.delete(q.id)
+  }
   const stat = await db.questionStats.get(q.id)
   if (stat) {
     await db.questionStats.update(q.id, { isBookmarked: next })
@@ -354,13 +362,12 @@ async function handleBookmark() {
   }
 }
 
-watch(currentQuestion, async (q) => {
+watch(currentQuestion, (q) => {
   if (!q) {
     bookmarked.value = false
     return
   }
-  const stat = await db.questionStats.get(q.id)
-  bookmarked.value = stat?.isBookmarked ?? false
+  bookmarked.value = bookmarkCache.value.has(q.id)
 })
 
 function onKeydown(e: KeyboardEvent) {
@@ -487,29 +494,33 @@ function goHome() {
   gap: 4px 12px;
 }
 
-/* slide transitions for question switching */
+/* slide transitions — out-in with snappy timing, no gap */
 .slide-left-enter-active,
+.slide-right-enter-active {
+  transition:
+    transform 0.2s var(--ease-brush),
+    opacity 0.2s var(--ease-brush);
+}
 .slide-left-leave-active,
-.slide-right-enter-active,
 .slide-right-leave-active {
   transition:
-    transform 0.26s cubic-bezier(0.22, 0.68, 0.25, 1),
-    opacity 0.22s ease;
+    transform 0.14s var(--ease-ink),
+    opacity 0.14s var(--ease-ink);
 }
 .slide-left-enter-from {
-  transform: translateX(38px);
+  transform: translateX(32px);
   opacity: 0;
 }
 .slide-left-leave-to {
-  transform: translateX(-38px);
+  transform: translateX(-32px);
   opacity: 0;
 }
 .slide-right-enter-from {
-  transform: translateX(-38px);
+  transform: translateX(-32px);
   opacity: 0;
 }
 .slide-right-leave-to {
-  transform: translateX(38px);
+  transform: translateX(32px);
   opacity: 0;
 }
 
@@ -536,7 +547,14 @@ function goHome() {
   padding: 10px 22px;
   border: 1px solid var(--border);
   font-size: 14px;
-  transition: all 0.12s;
+  transition:
+    background 0.18s var(--ease-ink),
+    color 0.18s var(--ease-ink),
+    border-color 0.18s var(--ease-ink),
+    transform 0.18s var(--ease-ink);
+}
+.btn:active:not(:disabled) {
+  transform: scale(0.97);
 }
 .btn-accent {
   background: var(--accent);
@@ -564,9 +582,13 @@ function goHome() {
   font-size: 22px;
   font-weight: 700;
   margin-bottom: 24px;
+  animation: fade-down 0.45s var(--ease-page) both;
+  animation-delay: 0.05s;
 }
 .finish-stat {
   margin-bottom: 16px;
+  animation: fade-up 0.5s var(--ease-brush) both;
+  animation-delay: 0.15s;
 }
 .finish-pct {
   font-family: var(--font-display);
@@ -586,6 +608,8 @@ function goHome() {
   margin-bottom: 32px;
   font-size: 15px;
   color: var(--text-secondary);
+  animation: fade-up 0.5s var(--ease-brush) both;
+  animation-delay: 0.22s;
 }
 .finish-details p {
   margin: 4px 0;
@@ -595,6 +619,8 @@ function goHome() {
   gap: 8px;
   justify-content: center;
   flex-wrap: wrap;
+  animation: fade-up 0.5s var(--ease-brush) both;
+  animation-delay: 0.29s;
 }
 
 .empty {

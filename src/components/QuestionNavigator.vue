@@ -104,9 +104,9 @@ function pick(i: number) {
   color: var(--text-secondary);
   font-size: 12px;
   transition:
-    border-color 0.18s,
-    color 0.18s,
-    background 0.18s;
+    border-color 0.22s var(--ease-ink),
+    color 0.22s var(--ease-ink),
+    background 0.22s var(--ease-ink);
 }
 .expand-btn:hover,
 .expand-btn.active {
@@ -218,13 +218,13 @@ function pick(i: number) {
   font-weight: 500;
   padding: 2px;
   transition:
-    transform 0.15s,
-    border-color 0.15s,
-    background 0.15s,
-    color 0.15s;
+    transform 0.2s var(--ease-ink),
+    border-color 0.2s var(--ease-ink),
+    background 0.2s var(--ease-ink),
+    color 0.2s var(--ease-ink);
 }
 .gcell:hover {
-  transform: scale(1.08);
+  transform: scale(1.1);
   border-color: var(--accent);
   color: var(--accent);
   z-index: 1;
@@ -261,16 +261,21 @@ function pick(i: number) {
 }
 
 /* drawer transition */
-.drawer-enter-active,
+.drawer-enter-active {
+  transition:
+    transform 0.26s var(--ease-drawer),
+    opacity 0.2s var(--ease-ink);
+  transform-origin: top left;
+}
 .drawer-leave-active {
   transition:
-    transform 0.24s ease,
-    opacity 0.24s ease;
+    transform 0.18s var(--ease-ink),
+    opacity 0.14s var(--ease-ink);
   transform-origin: top left;
 }
 .drawer-enter-from,
 .drawer-leave-to {
-  transform: translateY(-8px) scaleY(0.92);
+  transform: translateY(-10px) scaleY(0.9);
   opacity: 0;
 }
 

@@ -15,7 +15,11 @@ defineEmits<{ click: [tag: string] }>()
   background: var(--bg-hover);
   color: var(--text-secondary);
   margin: 2px 4px 2px 0;
-  transition: all 0.15s;
+  transition:
+    background 0.2s var(--ease-ink),
+    color 0.2s var(--ease-ink),
+    border-color 0.2s var(--ease-ink),
+    transform 0.2s var(--ease-ink);
   border: 1px solid transparent;
   line-height: 1.5;
   max-width: 100%;
@@ -33,5 +37,9 @@ defineEmits<{ click: [tag: string] }>()
   background: var(--accent);
   color: #fff;
   border-color: var(--accent);
+  transform: translateY(-1px);
+}
+.tag-badge.clickable:active {
+  transform: translateY(0) scale(0.97);
 }
 </style>

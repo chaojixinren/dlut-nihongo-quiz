@@ -436,7 +436,9 @@ function openSearchFromMobile() {
   font-family: inherit;
   cursor: pointer;
   border-radius: 2px;
-  transition: background 0.1s;
+  transition:
+    background 0.15s var(--ease-ink),
+    color 0.15s var(--ease-ink);
 }
 .nav-mobile-section a:hover,
 .nav-mobile-section button:hover {

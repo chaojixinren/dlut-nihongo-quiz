@@ -299,11 +299,7 @@ const dragOpacity = computed(() => {
   padding: 28px;
   max-width: 720px;
   margin: 0 auto;
-  transition:
-    transform 0.22s ease,
-    opacity 0.22s ease;
   touch-action: pan-y;
-  will-change: transform, opacity;
 }
 .question-card.dragging {
   transition: none;
@@ -378,7 +374,12 @@ const dragOpacity = computed(() => {
   border: 1px solid var(--border);
   background: var(--bg-card);
   cursor: pointer;
-  transition: all 0.12s;
+  transition:
+    border-color 0.18s var(--ease-ink),
+    border-left-color 0.18s var(--ease-ink),
+    background 0.18s var(--ease-ink),
+    color 0.18s var(--ease-ink),
+    transform 0.18s var(--ease-ink);
   text-align: left;
   font-size: 15px;
   color: var(--text-primary);
@@ -386,6 +387,10 @@ const dragOpacity = computed(() => {
 }
 .opt-btn:hover:not(:disabled) {
   background: var(--bg-hover);
+  border-color: var(--accent);
+}
+.opt-btn:active:not(:disabled) {
+  transform: scale(0.985);
 }
 .opt-btn.selected {
   border-left-color: var(--accent);
@@ -393,15 +398,15 @@ const dragOpacity = computed(() => {
 }
 .opt-btn.correct {
   border-left-color: var(--correct);
-  background: #f0f7f3;
+  background: color-mix(in srgb, var(--correct) 10%, transparent);
 }
 .opt-btn.wrong {
   border-left-color: var(--wrong);
-  background: #fdf5f4;
+  background: color-mix(in srgb, var(--wrong) 8%, transparent);
 }
 .opt-btn.missed {
   border-left-color: var(--warning);
-  background: #fefdf6;
+  background: color-mix(in srgb, var(--warning) 10%, transparent);
   border-left-style: dashed;
 }
 .opt-key {
@@ -416,10 +421,15 @@ const dragOpacity = computed(() => {
   color: var(--text-muted);
   border: 1px solid var(--border);
   font-family: var(--font-mono);
+  transition:
+    border-color 0.18s var(--ease-ink),
+    color 0.18s var(--ease-ink),
+    background 0.18s var(--ease-ink);
 }
 .opt-btn.selected .opt-key {
   border-color: var(--accent);
   color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
 }
 .opt-btn.multi .opt-key {
   border-radius: 0;
@@ -458,7 +468,11 @@ const dragOpacity = computed(() => {
   padding: 9px 22px;
   border: 1px solid var(--border);
   font-size: 14px;
-  transition: all 0.12s;
+  transition:
+    background 0.18s var(--ease-ink),
+    border-color 0.18s var(--ease-ink),
+    transform 0.18s var(--ease-ink),
+    opacity 0.18s var(--ease-ink);
   background: var(--accent);
   color: #fff;
   border-color: var(--accent);
@@ -470,15 +484,24 @@ const dragOpacity = computed(() => {
 .btn-submit:hover:not(:disabled) {
   background: var(--accent-hover);
 }
+.btn-submit:active:not(:disabled) {
+  transform: scale(0.97);
+}
 .bookmark-active {
   color: var(--warning);
   border-color: var(--warning);
-  background: #fefdf6;
+  background: color-mix(in srgb, var(--warning) 10%, transparent);
+  transition:
+    color 0.18s var(--ease-ink),
+    border-color 0.18s var(--ease-ink),
+    background 0.18s var(--ease-ink);
 }
 
 /* Result */
 .q-result {
   margin-top: 18px;
+  animation: fade-up 0.3s var(--ease-brush) both;
+  animation-delay: 0.05s;
 }
 .result-line {
   font-size: 15px;
@@ -487,12 +510,12 @@ const dragOpacity = computed(() => {
 }
 .result-line.correct {
   border-left-color: var(--correct);
-  background: #f0f7f3;
+  background: color-mix(in srgb, var(--correct) 10%, transparent);
   color: var(--correct);
 }
 .result-line.wrong {
   border-left-color: var(--wrong);
-  background: #fdf5f4;
+  background: color-mix(in srgb, var(--wrong) 8%, transparent);
   color: var(--wrong);
 }
 .result-badge {
@@ -505,6 +528,8 @@ const dragOpacity = computed(() => {
   margin-top: 20px;
   padding-top: 20px;
   border-top: 1px solid var(--border);
+  animation: ink-reveal 0.35s var(--ease-page) both;
+  transform-origin: top center;
 }
 .exp-section {
   margin-bottom: 14px;

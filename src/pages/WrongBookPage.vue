@@ -195,7 +195,10 @@ h1 {
   background: var(--bg-card);
   color: var(--text-secondary);
   font-size: 13px;
-  transition: all 0.12s;
+  transition:
+    background 0.18s var(--ease-ink),
+    color 0.18s var(--ease-ink),
+    border-color 0.18s var(--ease-ink);
 }
 .filters button:hover {
   color: var(--text-primary);
@@ -279,7 +282,10 @@ h1 {
   padding: 10px 22px;
   border: 1px solid var(--border);
   font-size: 14px;
-  transition: all 0.12s;
+  transition:
+    background 0.18s var(--ease-ink),
+    color 0.18s var(--ease-ink),
+    border-color 0.18s var(--ease-ink);
 }
 .btn-accent {
   background: var(--accent);
