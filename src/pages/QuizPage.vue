@@ -8,6 +8,7 @@ import {
   generateSessionId,
   isMultiAnswerCorrect,
   filterVisibleQuestions,
+  toggleMultiSelect,
 } from '../services/quizEngine'
 import {
   recordAttempt,
@@ -29,6 +30,7 @@ import QuestionCard from '../components/QuestionCard.vue'
 import QuestionNavigator from '../components/QuestionNavigator.vue'
 import ProgressBar from '../components/ProgressBar.vue'
 import PageSkeleton from '../components/PageSkeleton.vue'
+import { renderMarkdown } from '../utils/renderMarkdown'
 import type { Question, QuizMode } from '../types/question'
 
 const route = useRoute()
@@ -308,13 +310,21 @@ function saveCurrentDraft() {
 function jumpTo(i: number) {
   if (i === currentIndex.value || i < 0 || i >= questions.value.length) return
   saveCurrentDraft()
+  // Pre-render markdown before changing index so the new card's
+  // synchronous marked.parse() doesn't block the transition frames.
+  const target = questions.value[i]
+  if (target) {
+    renderMarkdown(target.stem)
+  }
   slideDirection.value = i > currentIndex.value ? 'slide-left' : 'slide-right'
   currentIndex.value = i
   const h = history.value[i]
   submitted.value = false
   selectedKey.value = h ? h.selectedKey : (drafts.value.get(i) ?? '')
   startTime.value = Date.now()
-  saveActiveSession(snapshot(false)) // fire-and-forget, don't block the transition
+  requestAnimationFrame(() => {
+    saveActiveSession(snapshot(false))
+  })
 }
 
 function handleNext() {
@@ -374,10 +384,20 @@ function onKeydown(e: KeyboardEvent) {
   if (finished.value) return
   if (!submitted.value) {
     const k = e.key.toUpperCase()
-    if (['A', 'B', 'C', 'D', 'E'].includes(k)) handleSelect(k)
-    else if (['1', '2', '3', '4', '5'].includes(e.key)) {
+    if (['A', 'B', 'C', 'D', 'E'].includes(k)) {
+      if (currentQuestion.value?.multiAnswer) {
+        selectedKey.value = toggleMultiSelect(selectedKey.value, k)
+      } else {
+        handleSelect(k)
+      }
+    } else if (['1', '2', '3', '4', '5'].includes(e.key)) {
       const keyIndex = Number(e.key) - 1
-      handleSelect(['A', 'B', 'C', 'D', 'E'][keyIndex])
+      const key = ['A', 'B', 'C', 'D', 'E'][keyIndex]
+      if (currentQuestion.value?.multiAnswer) {
+        selectedKey.value = toggleMultiSelect(selectedKey.value, key)
+      } else {
+        handleSelect(key)
+      }
     }
     if (e.key === 'Enter' && selectedKey.value) handleSubmit()
   } else {
@@ -494,33 +514,34 @@ function goHome() {
   gap: 4px 12px;
 }
 
-/* slide transitions — out-in with snappy timing, no gap */
+/* Slide transition — out-in mode with fast leave + smooth enter.
+   The leave is a barely-perceptible flicker (opacity only, no translate
+   jank). The enter slides in from the side. Cache warming in jumpTo()
+   ensures the new card's markdown is pre-parsed so mount is instant. */
 .slide-left-enter-active,
 .slide-right-enter-active {
   transition:
-    transform 0.2s var(--ease-brush),
-    opacity 0.2s var(--ease-brush);
+    transform 0.22s var(--ease-brush),
+    opacity 0.18s var(--ease-brush);
 }
 .slide-left-leave-active,
 .slide-right-leave-active {
-  transition:
-    transform 0.14s var(--ease-ink),
-    opacity 0.14s var(--ease-ink);
+  transition: opacity 0.08s var(--ease-ink);
 }
+
+/* Enter: slide in from the side */
 .slide-left-enter-from {
-  transform: translateX(32px);
-  opacity: 0;
-}
-.slide-left-leave-to {
-  transform: translateX(-32px);
+  transform: translateX(28px);
   opacity: 0;
 }
 .slide-right-enter-from {
-  transform: translateX(-32px);
+  transform: translateX(-28px);
   opacity: 0;
 }
+
+/* Leave: quick cross-fade, no translate (avoids the "freeze mid-slide" issue) */
+.slide-left-leave-to,
 .slide-right-leave-to {
-  transform: translateX(32px);
   opacity: 0;
 }
 
@@ -532,9 +553,7 @@ function goHome() {
     transition: opacity 0.12s ease;
   }
   .slide-left-enter-from,
-  .slide-left-leave-to,
-  .slide-right-enter-from,
-  .slide-right-leave-to {
+  .slide-right-enter-from {
     transform: none;
   }
 }

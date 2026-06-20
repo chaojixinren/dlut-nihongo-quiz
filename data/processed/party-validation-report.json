@@ -1,30 +1,30 @@
 {
   "report": [
-    "总题数: 1661",
+    "总题数: 1647",
     "  party-judge: 215题",
     "  party-multi: 261题",
-    "  party-p1: 155题",
-    "  party-p2: 216题",
+    "  party-p1: 151题",
+    "  party-p2: 206题",
     "  party-p3: 216题",
     "  party-p4: 256题",
     "  party-single: 342题",
-    "题型分布: single=1127, multi=532, judgement=2",
+    "题型分布: single=1114, multi=531, judgement=2",
     "✅ 校验完成"
   ],
-  "generatedAt": "2026-06-19T07:34:30.086Z",
-  "count": 1661,
+  "generatedAt": "2026-06-20T08:43:34.330Z",
+  "count": 1647,
   "byGroup": {
     "party-single": 342,
     "party-multi": 261,
     "party-judge": 215,
-    "party-p1": 155,
-    "party-p2": 216,
+    "party-p1": 151,
+    "party-p2": 206,
     "party-p3": 216,
     "party-p4": 256
   },
   "byType": {
-    "single": 1127,
-    "multi": 532,
+    "single": 1114,
+    "multi": 531,
     "judgement": 2
   }
 }
