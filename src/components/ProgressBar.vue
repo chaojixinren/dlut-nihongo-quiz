@@ -49,7 +49,7 @@ function onPointerMove(e: PointerEvent) {
   dragRatio.value = ratioFromX(e.clientX)
 }
 
-function onPointerUp(e: PointerEvent) {
+function onPointerUp(_e: PointerEvent) {
   if (!dragging.value) return
   const target = previewIdx.value
   dragging.value = false

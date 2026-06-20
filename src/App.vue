@@ -15,13 +15,7 @@ const activeCategory = useActiveCategory()
 const searchOpen = ref(false)
 const mobileMenuOpen = ref(false)
 
-const {
-  isUnlocked,
-  unlockProgress,
-  startLongPress,
-  cancelLongPress,
-  lock,
-} = useHiddenSite()
+const { isUnlocked, unlockProgress, startLongPress, cancelLongPress, lock } = useHiddenSite()
 
 function exitHidden() {
   lock()
@@ -290,7 +284,9 @@ function openSearchFromMobile() {
   background: transparent;
   color: var(--text-secondary);
   font-size: 13px;
-  transition: color 0.15s;
+  transition:
+    color 0.18s var(--ease-ink),
+    background 0.18s var(--ease-ink);
   white-space: nowrap;
   position: relative;
 }
@@ -315,9 +311,27 @@ function openSearchFromMobile() {
   text-decoration: none;
   color: var(--text-secondary);
   font-size: 13px;
-  transition: color 0.15s;
+  transition:
+    color 0.18s var(--ease-ink),
+    background 0.18s var(--ease-ink);
   white-space: nowrap;
   border-radius: 2px;
+  position: relative;
+}
+.nav-links a::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 8px;
+  right: 8px;
+  height: 2px;
+  background: var(--accent);
+  transform: scaleX(0);
+  transition: transform 0.22s var(--ease-brush);
+  transform-origin: left center;
+}
+.nav-links a:hover::after {
+  transform: scaleX(1);
 }
 .nav-links a {
   background: transparent;
@@ -333,6 +347,9 @@ function openSearchFromMobile() {
   color: var(--accent);
   font-weight: 500;
 }
+.nav-links a.router-link-active::after {
+  transform: scaleX(1);
+}
 
 .search-trigger {
   background: none;
@@ -342,7 +359,9 @@ function openSearchFromMobile() {
   color: var(--text-muted);
   padding: 3px 8px;
   cursor: pointer;
-  transition: all 0.12s;
+  transition:
+    color 0.18s var(--ease-ink),
+    border-color 0.18s var(--ease-ink);
   white-space: nowrap;
 }
 .search-trigger:hover {
@@ -366,7 +385,7 @@ function openSearchFromMobile() {
   width: 18px;
   height: 2px;
   background: var(--text-primary);
-  transition: background 0.15s;
+  transition: background 0.18s var(--ease-ink);
   border-radius: 1px;
 }
 .nav-hamburger:hover span {
@@ -437,13 +456,21 @@ function openSearchFromMobile() {
   color: var(--accent) !important;
 }
 
-.nav-mobile-enter-active,
+.nav-mobile-enter-active {
+  transition: opacity 0.16s var(--ease-page);
+}
 .nav-mobile-leave-active {
-  transition: opacity 0.12s;
+  transition: opacity 0.12s var(--ease-ink);
 }
 .nav-mobile-enter-from,
 .nav-mobile-leave-to {
   opacity: 0;
+}
+.nav-mobile-enter-active .nav-mobile-menu {
+  animation: fade-down 0.2s var(--ease-page) both;
+}
+.nav-mobile-leave-active .nav-mobile-menu {
+  animation: fade-up 0.12s var(--ease-ink) both reverse;
 }
 
 .main {
@@ -454,19 +481,34 @@ function openSearchFromMobile() {
   width: 100%;
 }
 
-.page-fade-enter-active,
+.page-fade-enter-active {
+  transition:
+    opacity 0.22s var(--ease-page),
+    transform 0.26s var(--ease-page);
+}
 .page-fade-leave-active {
   transition:
-    opacity 0.15s,
-    transform 0.15s;
+    opacity 0.14s var(--ease-ink),
+    transform 0.16s var(--ease-ink);
 }
 .page-fade-enter-from {
   opacity: 0;
-  transform: translateY(4px);
+  transform: translateY(8px);
 }
 .page-fade-leave-to {
   opacity: 0;
-  transform: translateY(-4px);
+  transform: translateY(-6px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page-fade-enter-active,
+  .page-fade-leave-active {
+    transition: opacity 0.1s ease;
+  }
+  .page-fade-enter-from,
+  .page-fade-leave-to {
+    transform: none;
+  }
 }
 
 .app-footer {
@@ -503,7 +545,10 @@ function openSearchFromMobile() {
   letter-spacing: 2px;
   padding: 2px 10px;
   cursor: pointer;
-  transition: all 0.15s;
+  transition:
+    color 0.18s var(--ease-ink),
+    border-color 0.18s var(--ease-ink),
+    background 0.18s var(--ease-ink);
 }
 .footer-exit-btn:hover {
   color: var(--accent);
@@ -581,5 +626,4 @@ function openSearchFromMobile() {
   transition: width 0.08s linear;
   pointer-events: none;
 }
-
 </style>

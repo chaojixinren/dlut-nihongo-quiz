@@ -69,7 +69,9 @@ let observer: IntersectionObserver | null = null
 
 function setupObserver() {
   if (observer) observer.disconnect()
-  const headings = document.querySelectorAll<HTMLElement>('.grammar-content h2[id], .grammar-content h3[id]')
+  const headings = document.querySelectorAll<HTMLElement>(
+    '.grammar-content h2[id], .grammar-content h3[id]',
+  )
   if (headings.length === 0) return
   // rootMargin 让标题进入"视口上 1/3"时即视为激活
   observer = new IntersectionObserver(
@@ -150,7 +152,11 @@ const subtitle = computed(() => {
     <!-- 移动端课次切换 -->
     <div class="mobile-lesson-switcher">
       <label for="lesson-select">跳转到</label>
-      <select id="lesson-select" :value="mobileLesson" @change="selectMobileLesson(($event.target as HTMLSelectElement).value)">
+      <select
+        id="lesson-select"
+        :value="mobileLesson"
+        @change="selectMobileLesson(($event.target as HTMLSelectElement).value)"
+      >
         <option v-for="l in mobileLessons" :key="l.id" :value="l.id">{{ l.text }}</option>
       </select>
     </div>

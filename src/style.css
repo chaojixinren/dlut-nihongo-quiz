@@ -2,6 +2,7 @@
   墨彩 (Sumi-sai) — Japanese Ink on Paper
   Zero-radius geometry. One vermillion accent. Monochrome base.
   Serif display + clean sans body. Subtle paper texture.
+  Animations evoke ink spreading on washi — gradual, organic, weighted.
 */
 
 :root {
@@ -27,6 +28,13 @@
   --font-display: 'Noto Serif SC', 'Songti SC', 'SimSun', 'Source Han Serif SC', serif;
   --font-body: 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', 'SF Mono', 'Cascadia Code', 'Consolas', monospace;
+
+  /* Animation curves — ink on washi paper */
+  --ease-ink: cubic-bezier(0.4, 0.0, 0.2, 1.0);       /* ink spreading: gradual settle */
+  --ease-brush: cubic-bezier(0.2, 0.0, 0.0, 1.0);      /* brush stroke: sharp entry, long tail */
+  --ease-page: cubic-bezier(0.33, 0.0, 0.1, 1.0);      /* page turn: very smooth deceleration */
+  --ease-stamp: cubic-bezier(0.6, 0.0, 0.4, 1.0);      /* hanko stamp: slight anticipation, firm stop */
+  --ease-drawer: cubic-bezier(0.22, 0.68, 0.25, 1.0);  /* drawer/slide: existing curve, kept for consistency */
 
   font-family: var(--font-body);
   font-size: 16px;
@@ -80,7 +88,12 @@ body::before {
 }
 
 /* Eliminate 300ms tap delay and double-tap zoom on touch */
-a, button, input, select, textarea, [role="button"] {
+a,
+button,
+input,
+select,
+textarea,
+[role='button'] {
   touch-action: manipulation;
 }
 body {
@@ -98,7 +111,7 @@ button {
 a {
   color: var(--accent);
   text-decoration: none;
-  transition: color 0.15s;
+  transition: color 0.18s var(--ease-ink);
   -webkit-tap-highlight-color: transparent;
 }
 a:hover {
@@ -126,13 +139,65 @@ select {
   min-height: 100vh;
 }
 
-/* Button utility classes */
+/* Keyframe animations */
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes fade-down {
+  from { opacity: 0; transform: translateY(-12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes ink-reveal {
+  from { opacity: 0; transform: scaleX(0.96); }
+  to   { opacity: 1; transform: scaleX(1); }
+}
+@keyframes count-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes border-bleed {
+  0%   { border-color: var(--border); }
+  100% { border-color: var(--accent); }
+}
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+/* Staggered entrance utility */
+.stagger-1 { animation: fade-up 0.5s var(--ease-brush) both; animation-delay: 0.05s; }
+.stagger-2 { animation: fade-up 0.5s var(--ease-brush) both; animation-delay: 0.12s; }
+.stagger-3 { animation: fade-up 0.5s var(--ease-brush) both; animation-delay: 0.19s; }
+.stagger-4 { animation: fade-up 0.5s var(--ease-brush) both; animation-delay: 0.26s; }
+.stagger-5 { animation: fade-up 0.5s var(--ease-brush) both; animation-delay: 0.33s; }
+.stagger-6 { animation: fade-up 0.5s var(--ease-brush) both; animation-delay: 0.40s; }
+
+@media (prefers-reduced-motion: reduce) {
+  .stagger-1, .stagger-2, .stagger-3,
+  .stagger-4, .stagger-5, .stagger-6 {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Button utility classes — ink-on-paper interactions */
 .btn {
   padding: 10px 22px;
   border: 1px solid var(--border);
   font-size: 14px;
-  transition: all 0.12s;
+  transition:
+    background 0.18s var(--ease-ink),
+    color 0.18s var(--ease-ink),
+    border-color 0.18s var(--ease-ink),
+    transform 0.18s var(--ease-ink),
+    opacity 0.18s var(--ease-ink);
   cursor: pointer;
+  position: relative;
+}
+.btn:active:not(:disabled) {
+  transform: scale(0.97);
 }
 .btn-accent {
   background: var(--accent);
@@ -140,6 +205,9 @@ select {
   border-color: var(--accent);
 }
 .btn-accent:hover {
+  background: var(--accent-hover);
+}
+.btn-accent:active:not(:disabled) {
   background: var(--accent-hover);
 }
 .btn-accent:disabled {
@@ -153,6 +221,9 @@ select {
 .btn-outline:hover {
   border-color: var(--accent);
   color: var(--accent);
+}
+.btn-outline:active:not(:disabled) {
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
 }
 .btn-outline.danger {
   color: var(--wrong);
@@ -169,6 +240,9 @@ select {
 }
 .btn-ghost:hover {
   background: var(--bg-hover);
+}
+.btn-ghost:active:not(:disabled) {
+  background: color-mix(in srgb, var(--text-primary) 8%, transparent);
 }
 .btn-sm {
   padding: 5px 12px;
@@ -425,4 +499,3 @@ select {
     word-break: break-word;
   }
 }
-

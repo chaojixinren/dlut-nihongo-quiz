@@ -443,7 +443,12 @@ function main() {
   fs.writeFileSync(
     path.resolve(__dirname, '../data/processed/japanese-2024-validation-report.json'),
     JSON.stringify(
-      { report, generatedAt: new Date().toISOString(), count: enriched.length, merged: merged.length },
+      {
+        report,
+        generatedAt: new Date().toISOString(),
+        count: enriched.length,
+        merged: merged.length,
+      },
       null,
       2,
     ),

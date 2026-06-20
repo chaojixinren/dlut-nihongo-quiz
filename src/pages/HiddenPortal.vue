@@ -199,7 +199,11 @@ const hiddenCards = [
 
         <div class="mobile-lesson-switcher">
           <label for="lesson-select">跳转到</label>
-          <select id="lesson-select" :value="mobileLesson" @change="selectMobileLesson(($event.target as HTMLSelectElement).value)">
+          <select
+            id="lesson-select"
+            :value="mobileLesson"
+            @change="selectMobileLesson(($event.target as HTMLSelectElement).value)"
+          >
             <option v-for="l in mobileLessons" :key="l.id" :value="l.id">{{ l.text }}</option>
           </select>
         </div>

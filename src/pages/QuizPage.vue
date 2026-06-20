@@ -312,12 +312,6 @@ async function jumpTo(i: number) {
   await saveActiveSession(snapshot(false))
 }
 
-async function goOffset(delta: number) {
-  const next = currentIndex.value + delta
-  if (next < 0 || next >= questions.value.length) return
-  await jumpTo(next)
-}
-
 async function handleNext() {
   if (currentIndex.value >= questions.value.length - 1) {
     finished.value = true
