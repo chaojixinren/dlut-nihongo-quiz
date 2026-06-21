@@ -105,23 +105,26 @@ function stopTimer() {
   }
 }
 
-// 把 query 解析成 { mode, pool, display }，避免在 onMounted 里反复覆盖 mode.value
+// 把 query 解析成 { mode, pool, display, shuffle }，避免在 onMounted 里反复覆盖 mode.value
 function resolveMode(all: Question[]): {
   poolMode: QuizMode
   displayMode: string
   pool: Question[]
+  shuffle: boolean
 } {
   const tag = route.query.tag as string | undefined
   const groupFilter = route.query.group as string | undefined
   const groupsParam = route.query.groups as string | undefined
   const idsParam = route.query.ids as string | undefined
   const modeParam = route.query.mode as string | undefined
+  const shuffle = route.query.shuffle === '1'
 
   if (tag) {
     return {
       poolMode: 'tag',
       displayMode: `tag: ${tag}`,
       pool: filterVisibleQuestions(getQuestionsByTag(tag, activeCategory.value), isUnlocked.value),
+      shuffle: false,
     }
   }
 
@@ -147,16 +150,21 @@ function resolveMode(all: Question[]): {
       ? 'untouched'
       : (modeParam as QuizMode) || 'sequential'
 
-  let displayMode: string = poolMode
+  const isFilteredMode = poolMode === 'untouched' || poolMode === 'wrong'
+  const suffix = shuffle && isFilteredMode ? ' · 随机' : ''
+  const actionLabel = isFilteredMode ? (poolMode === 'untouched' ? '未做' : '错题') : poolMode
+
+  let displayMode: string
   if (groupsParam) {
-    displayMode = `套题 · ${poolMode}`
+    displayMode = `套题 · ${actionLabel}${suffix}`
   } else if (groupFilter) {
     const groupTitle = all.find((q) => q.groupId === groupFilter)?.groupTitle || groupFilter
-    const action = idsParam ? (modeParam === 'untouched' ? '未做' : '错题') : poolMode
-    displayMode = `${groupTitle} · ${action}`
+    displayMode = `${groupTitle} · ${actionLabel}${suffix}`
+  } else {
+    displayMode = `${actionLabel}${suffix}`
   }
 
-  return { poolMode, displayMode, pool }
+  return { poolMode, displayMode, pool, shuffle }
 }
 
 onMounted(async () => {
@@ -195,7 +203,7 @@ onMounted(async () => {
     }
   }
 
-  const { poolMode, displayMode, pool } = resolveMode(all)
+  const { poolMode, displayMode, pool, shuffle } = resolveMode(all)
   mode.value = displayMode
 
   let finalPool = pool
@@ -213,6 +221,8 @@ onMounted(async () => {
     finalPool = [...priorityQuestions, ...remaining]
   } else if (poolMode === 'exam') {
     finalPool = shuffleArray([...all])
+  } else if ((poolMode === 'untouched' || poolMode === 'wrong') && shuffle) {
+    finalPool = shuffleArray(pool)
   }
   questions.value = finalPool
 

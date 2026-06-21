@@ -32,8 +32,15 @@ import { computeStreak } from '../utils/streak'
 import StatCard from '../components/StatCard.vue'
 import TagBadge from '../components/TagBadge.vue'
 import PageSkeleton from '../components/PageSkeleton.vue'
+import ActionMenuButton from '../components/ActionMenuButton.vue'
 import type { Recommendation } from '../services/reviewScheduler'
 import type { Question, QuestionStats, QuizMode } from '../types/question'
+
+// 「未做」「错题」按钮共用：点击后弹出顺序/随机选项
+const ORDER_ITEMS = [
+  { key: 'seq', label: '顺序', value: false },
+  { key: 'rnd', label: '随机', value: true },
+]
 
 const router = useRouter()
 const activeCategory = useActiveCategory()
@@ -176,8 +183,9 @@ watch(isUnlocked, () => {
   refresh()
 })
 
-function startQuiz(mode: QuizMode | 'weakness') {
+function startQuiz(mode: QuizMode | 'weakness', options?: { shuffle?: boolean }) {
   const params: Record<string, string> = { mode }
+  if (options?.shuffle) params.shuffle = '1'
   if (mode === 'wrong' && wrongIds.value.length > 0) {
     params.ids = wrongIds.value.join(',')
   } else if (mode === 'untouched' && untouchedIds.value.length > 0) {
@@ -190,10 +198,15 @@ function startTagQuiz(tag: string) {
   router.push({ path: '/quiz', query: { tag } })
 }
 
-function startHistoryGroup(groupId: string, mode: 'sequential' | 'random' | 'wrong' | 'untouched') {
+function startHistoryGroup(
+  groupId: string,
+  mode: 'sequential' | 'random' | 'wrong' | 'untouched',
+  options?: { shuffle?: boolean },
+) {
   const s = groupStats.value[groupId]
   if (!s) return
   const params: Record<string, string> = { group: groupId, mode }
+  if (options?.shuffle) params.shuffle = '1'
   if (mode === 'wrong' && s.wrongIds.length > 0) {
     params.ids = s.wrongIds.join(',')
   } else if (mode === 'untouched' && s.untouchedIds.length > 0) {
@@ -287,10 +300,14 @@ function clearSubBank() {
   setActiveSubBankKey(null)
 }
 
-function startSubBankFull(mode: 'sequential' | 'random' | 'wrong' | 'untouched') {
+function startSubBankFull(
+  mode: 'sequential' | 'random' | 'wrong' | 'untouched',
+  options?: { shuffle?: boolean },
+) {
   const sb = currentSubBank.value
   if (!sb) return
   const params: Record<string, string> = { mode, groups: sb.groupOrder.join(',') }
+  if (options?.shuffle) params.shuffle = '1'
   if (mode === 'wrong') {
     const allWrong: string[] = []
     for (const gid of sb.groupOrder) {
@@ -423,20 +440,19 @@ const groupViewHint = computed(() => {
       <div class="quick-actions">
         <button class="btn btn-accent" @click="startQuiz('sequential')">顺序刷题</button>
         <button class="btn btn-outline" @click="startQuiz('random')">随机刷题</button>
-        <button
-          class="btn btn-outline"
+        <ActionMenuButton
           v-if="untouchedIds.length > 0"
-          @click="startQuiz('untouched')"
-        >
-          未做题 ({{ untouchedIds.length }})
-        </button>
-        <button
-          class="btn btn-outline danger"
+          :label="`未做题 (${untouchedIds.length})`"
+          :items="ORDER_ITEMS"
+          @select="(shuffle) => startQuiz('untouched', { shuffle })"
+        />
+        <ActionMenuButton
           v-if="wrongIds.length > 0"
-          @click="startQuiz('wrong')"
-        >
-          错题重刷 ({{ wrongIds.length }})
-        </button>
+          variant="danger"
+          :label="`错题重刷 (${wrongIds.length})`"
+          :items="ORDER_ITEMS"
+          @select="(shuffle) => startQuiz('wrong', { shuffle })"
+        />
         <button class="btn btn-outline" @click="startQuiz('weakness')">弱点突破</button>
       </div>
     </section>
@@ -502,12 +518,17 @@ const groupViewHint = computed(() => {
             <button class="btn btn-outline" @click="startSubBankFull('random')">
               刷整套 · 随机
             </button>
-            <button class="btn btn-outline" @click="startSubBankFull('untouched')">
-              未做 · 顺序
-            </button>
-            <button class="btn btn-outline danger" @click="startSubBankFull('wrong')">
-              错题 · 顺序
-            </button>
+            <ActionMenuButton
+              label="未做"
+              :items="ORDER_ITEMS"
+              @select="(shuffle) => startSubBankFull('untouched', { shuffle })"
+            />
+            <ActionMenuButton
+              variant="danger"
+              label="错题"
+              :items="ORDER_ITEMS"
+              @select="(shuffle) => startSubBankFull('wrong', { shuffle })"
+            />
           </div>
         </div>
       </section>
@@ -523,8 +544,17 @@ const groupViewHint = computed(() => {
         <div class="full-set-actions">
           <button class="btn btn-accent" @click="startQuiz('sequential')">刷整套 · 顺序</button>
           <button class="btn btn-outline" @click="startQuiz('random')">刷整套 · 随机</button>
-          <button class="btn btn-outline" @click="startQuiz('untouched')">未做 · 顺序</button>
-          <button class="btn btn-outline danger" @click="startQuiz('wrong')">错题 · 顺序</button>
+          <ActionMenuButton
+            label="未做"
+            :items="ORDER_ITEMS"
+            @select="(shuffle) => startQuiz('untouched', { shuffle })"
+          />
+          <ActionMenuButton
+            variant="danger"
+            label="错题"
+            :items="ORDER_ITEMS"
+            @select="(shuffle) => startQuiz('wrong', { shuffle })"
+          />
         </div>
       </div>
       <div class="group-grid">
@@ -561,20 +591,21 @@ const groupViewHint = computed(() => {
             <button class="btn btn-outline btn-sm" @click="startHistoryGroup(g.groupId, 'random')">
               随机
             </button>
-            <button
-              class="btn btn-outline btn-sm danger"
-              @click="startHistoryGroup(g.groupId, 'wrong')"
+            <ActionMenuButton
+              variant="danger"
+              size="sm"
+              :label="`错题 (${groupStats[g.groupId]?.wrongIds.length ?? 0})`"
+              :items="ORDER_ITEMS"
               :disabled="(groupStats[g.groupId]?.wrongIds.length ?? 0) === 0"
-            >
-              错题 ({{ groupStats[g.groupId]?.wrongIds.length ?? 0 }})
-            </button>
-            <button
-              class="btn btn-outline btn-sm"
-              @click="startHistoryGroup(g.groupId, 'untouched')"
+              @select="(shuffle) => startHistoryGroup(g.groupId, 'wrong', { shuffle })"
+            />
+            <ActionMenuButton
+              size="sm"
+              :label="`未做 (${groupStats[g.groupId]?.untouchedIds.length ?? 0})`"
+              :items="ORDER_ITEMS"
               :disabled="(groupStats[g.groupId]?.untouchedIds.length ?? 0) === 0"
-            >
-              未做 ({{ groupStats[g.groupId]?.untouchedIds.length ?? 0 }})
-            </button>
+              @select="(shuffle) => startHistoryGroup(g.groupId, 'untouched', { shuffle })"
+            />
           </div>
         </div>
       </div>
