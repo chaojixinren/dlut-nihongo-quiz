@@ -119,6 +119,13 @@ function openSearchFromMobile() {
           >
             {{ c.short }}
           </button>
+          <button
+            v-if="isUnlocked"
+            :class="['cat-btn', { active: route.path === '/calculus-notes' }]"
+            @click="router.push('/calculus-notes')"
+          >
+            微积分
+          </button>
         </div>
         <div class="nav-links">
           <a
@@ -163,6 +170,13 @@ function openSearchFromMobile() {
               @click="switchCategory(c.key)"
             >
               {{ c.short }}
+            </button>
+            <button
+              v-if="isUnlocked"
+              :class="{ active: route.path === '/calculus-notes' }"
+              @click="mobileMenuOpen = false; router.push('/calculus-notes')"
+            >
+              微积分
             </button>
           </div>
         </div>

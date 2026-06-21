@@ -14,6 +14,11 @@ const router = createRouter({
       name: 'grammar-notes',
       component: () => import('../pages/GrammarNotesPage.vue'),
     },
+    {
+      path: '/calculus-notes',
+      name: 'calculus-notes',
+      component: () => import('../pages/CalculusNotesPage.vue'),
+    },
   ],
 })
 

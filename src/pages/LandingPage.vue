@@ -5,9 +5,11 @@ import { getCategoryCounts } from '../services/quizEngine'
 import { loadActiveCategory, setActiveCategory } from '../services/categoryStore'
 import { CATEGORIES } from '../config/categories'
 import { db } from '../db/database'
+import { useHiddenSite } from '../composables/useHiddenSite'
 import type { Category } from '../types/question'
 
 const router = useRouter()
+const { isUnlocked } = useHiddenSite()
 
 const counts = ref<Record<Category, number>>({} as Record<Category, number>)
 const totalDone = ref(0)
@@ -29,6 +31,10 @@ function enterSubject(cat: Category) {
 
 function quickStart() {
   router.push('/home')
+}
+
+function goCalculusNotes() {
+  router.push('/calculus-notes')
 }
 
 const subjects = computed(() =>
@@ -80,6 +86,15 @@ const subjects = computed(() =>
     <section class="subjects">
       <h2>选择学科，开始复习</h2>
       <div class="subject-grid">
+        <div v-if="isUnlocked" class="subject-card calculus-card" @click="goCalculusNotes">
+          <div class="sc-icon">微</div>
+          <div class="sc-body">
+            <h3 class="sc-title">微积分2</h3>
+            <p class="sc-desc">第1–18课 · 级数→高斯公式 · 笔记整理</p>
+          </div>
+          <div class="sc-count">18 课</div>
+          <span class="sc-arrow">&rarr;</span>
+        </div>
         <div v-for="s in subjects" :key="s.key" class="subject-card" @click="enterSubject(s.key)">
           <div class="sc-icon">{{ s.icon }}</div>
           <div class="sc-body">
