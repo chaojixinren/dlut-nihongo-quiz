@@ -83,7 +83,7 @@ async function refresh() {
     loadQuestionBank(cat),
     db.questionStats.toArray(),
   ])
-  // 表站未解锁时，剔除里站专属 groupId（g11/g21–g28），避免 tag、薄弱、掌握度被污染。
+  // 表站未解锁时，剔除里站专属 groupId（requireUnlock subBank），避免 tag、薄弱、掌握度被污染。
   const all = filterVisibleQuestions(rawAll, unlocked)
   questions.value = all
   totalQuestions.value = all.length
@@ -237,40 +237,40 @@ const currentSubBank = computed(() => {
 const visibleSubBanks = computed(() => {
   const sb = meta.value.subBanks
   if (!sb) return []
-  // When unlocked, show all sub-banks; otherwise only show textbook/学习通
   if (isUnlocked.value) return sb
-  return sb.filter((s) => s.key === 'textbook')
+  return sb.filter((s) => !s.requireUnlock)
 })
 const isGroupView = computed(
   () =>
     GROUPED_CATEGORIES.has(activeCategory.value) ||
     (hasSubBanks.value && Boolean(activeSubBankKey.value)),
 )
+const isWordSubBank = computed(() => activeSubBankKey.value === 'word')
 const titleText = computed(() => {
-  if (meta.value.long === '日语语法' && currentSubBank.value) return currentSubBank.value.name
-  return meta.value.long === '日语语法' ? '日语期末复习题库' : meta.value.long
+  if (meta.value.long === '综合日语2' && currentSubBank.value) return currentSubBank.value.name
+  return meta.value.long === '综合日语2' ? '综合日语2' : meta.value.long
 })
 const subtitleText = computed(() => {
   const n = totalQuestions.value
   const k = activeCategory.value
-  if (k === 'grammar') {
+  if (k === 'japanese2') {
     if (currentSubBank.value) {
       const gCount = currentSubBank.value.groupOrder.length
       const qCount = questions.value.filter((q) =>
         currentSubBank.value!.groupOrder.includes(q.groupId),
       ).length
+      if (isWordSubBank.value) return `${qCount} 题 · 第26-36课 · 汉字 / 假名`
       return `${qCount} 题 · ${gCount}大题组`
     }
-    return `${n} 题 · 2个子题库 · 智能复习`
+    return `${n} 题 · 4个子题库 · 综合复习`
   }
-  if (k === 'word') return `${n} 题 · 第26-36课 · 汉字 / 假名`
   if (k === 'history') return `${n} 题 · 11个刷题单 · 单选/多选/判断`
   if (k === 'party') return `${n} 题 · 7个刷题单 · 单选/多选/判断`
   if (k === 'military') return `${n} 题 · 22个刷题单 · 单选/多选/判断`
   return `${n} 题`
 })
 const tagSectionTitle = computed(() =>
-  activeCategory.value === 'word' ? '按课/标签复习' : '按语法标签复习',
+  isWordSubBank.value ? '按课/标签复习' : '按语法标签复习',
 )
 // 标签云直接基于已过滤的 questions.value 计算，避开 getAllTags 的全量缓存，
 // 保证表站看不到「2021真题」「阅读理解」等里站专属 tag。
@@ -285,7 +285,7 @@ const visibleTags = computed(() => {
     .slice(0, 20)
 })
 const weakSectionTitle = computed(() =>
-  activeCategory.value === 'word' ? '薄弱课/标签' : '薄弱语法点',
+  isWordSubBank.value ? '薄弱课/标签' : '薄弱语法点',
 )
 
 function selectSubBank(key: string) {
@@ -459,7 +459,7 @@ const groupViewHint = computed(() => {
 
     <!-- Grammar notes entry — only visible when unlocked -->
     <section
-      v-if="isUnlocked && activeCategory === 'grammar'"
+      v-if="isUnlocked && activeCategory === 'japanese2' && activeSubBankKey !== 'word'"
       class="grammar-entry-card"
       @click="router.push('/grammar-notes')"
     >

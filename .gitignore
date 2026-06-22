@@ -55,6 +55,7 @@ src/components/HelloWorld.vue
 
 # Claude Code local working files
 .claude/
+CLAUDE.md
 
 # Brainstorming/planning docs (internal, not user-facing)
 docs/superpowers/

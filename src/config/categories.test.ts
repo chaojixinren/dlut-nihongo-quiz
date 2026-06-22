@@ -7,13 +7,12 @@ import {
 } from './categories'
 
 describe('CATEGORIES config', () => {
-  it('covers all 5 categories', () => {
+  it('covers all 4 categories after japanese2 merge', () => {
     expect(CATEGORIES.map((c) => c.key).sort()).toEqual([
-      'grammar',
       'history',
+      'japanese2',
       'military',
       'party',
-      'word',
     ])
   })
 
@@ -25,16 +24,25 @@ describe('CATEGORIES config', () => {
   })
 
   it('getCategoryMeta returns the entry for the key', () => {
-    expect(getCategoryMeta('grammar').long).toBe('日语语法')
-    expect(getCategoryMeta('word').bankFile).toBe('word-question-bank.json')
+    expect(getCategoryMeta('japanese2').long).toBe('综合日语2')
+    expect(getCategoryMeta('japanese2').bankFile).toBe('japanese2-question-bank.json')
+  })
+
+  it('japanese2 has 4 subBanks covering word + 3 grammar banks', () => {
+    const jp2 = getCategoryMeta('japanese2')
+    expect(jp2.subBanks?.map((s) => s.key)).toEqual([
+      'word',
+      'grammar-textbook',
+      'grammar-2021',
+      'grammar-2024',
+    ])
   })
 
   it('NO_SHUFFLE_CATEGORIES contains history/party/military (multi-answer banks)', () => {
     expect(NO_SHUFFLE_CATEGORIES.has('history')).toBe(true)
     expect(NO_SHUFFLE_CATEGORIES.has('party')).toBe(true)
     expect(NO_SHUFFLE_CATEGORIES.has('military')).toBe(true)
-    expect(NO_SHUFFLE_CATEGORIES.has('grammar')).toBe(false)
-    expect(NO_SHUFFLE_CATEGORIES.has('word')).toBe(false)
+    expect(NO_SHUFFLE_CATEGORIES.has('japanese2')).toBe(false)
   })
 
   it('GROUPED_CATEGORIES aligns with which entries have groupOrder', () => {

@@ -170,13 +170,13 @@ function resolveMode(all: Question[]): {
 onMounted(async () => {
   await loadActiveCategory()
   const queryCat = route.query.category as string | undefined
-  if (queryCat === 'grammar' || queryCat === 'word') {
+  if (queryCat === 'japanese2') {
     if (queryCat !== activeCategory.value) {
       await setActiveCategory(queryCat)
     }
   }
   const cat = activeCategory.value
-  // 表站未解锁时剔除里站题（g11/g21–g28）。里站入口设了 subBank 后 isUnlocked 必为 true，no-op。
+  // 表站未解锁时剔除里站题（requireUnlock subBank 的 groupOrder）。里站入口设了 subBank 后 isUnlocked 必为 true，no-op。
   const all = filterVisibleQuestions(await loadQuestionBank(cat), isUnlocked.value)
 
   // preload bookmark status so the watch on currentQuestion doesn't hit IndexedDB

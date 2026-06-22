@@ -37,7 +37,7 @@ export function isReviewDue(s: QuestionStats, now: Date = new Date()): boolean {
 }
 
 export async function getWeakTags(
-  category: Category = 'grammar',
+  category: Category = 'japanese2',
   _allStats?: QuestionStats[],
   options?: { isUnlocked?: boolean },
 ): Promise<Recommendation[]> {
@@ -72,7 +72,7 @@ export async function getWeakTags(
 }
 
 export async function getReviewQueue(
-  category: Category = 'grammar',
+  category: Category = 'japanese2',
   allStats?: QuestionStats[],
   options?: { isUnlocked?: boolean },
 ): Promise<string[]> {
@@ -92,7 +92,7 @@ export async function getReviewQueue(
 }
 
 export async function getWrongQuestionIds(
-  category: Category = 'grammar',
+  category: Category = 'japanese2',
   allStats?: QuestionStats[],
   options?: { isUnlocked?: boolean },
 ): Promise<string[]> {
@@ -104,7 +104,7 @@ export async function getWrongQuestionIds(
 }
 
 export async function getUntouchedQuestionIds(
-  category: Category = 'grammar',
+  category: Category = 'japanese2',
   allStats?: QuestionStats[],
   options?: { isUnlocked?: boolean },
 ): Promise<string[]> {
@@ -115,7 +115,7 @@ export async function getUntouchedQuestionIds(
 }
 
 export async function getMasterySummary(
-  category: Category = 'grammar',
+  category: Category = 'japanese2',
   allStats?: QuestionStats[],
   options?: { isUnlocked?: boolean },
 ): Promise<{ mastered: number; learning: number; weak: number; untouched: number }> {

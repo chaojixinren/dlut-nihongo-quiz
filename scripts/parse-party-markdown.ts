@@ -71,7 +71,7 @@ function detectAnswerType(
       normalized: cleaned === '对' ? '正确' : cleaned === '错' ? '错误' : cleaned,
     }
   }
-  if (/^[A-E]+$/.test(cleaned)) {
+  if (/^[A-J]+$/.test(cleaned)) {
     if (cleaned.length > 1) return { kind: 'multi', normalized: cleaned.split('').sort().join('') }
     return { kind: 'single', normalized: cleaned }
   }
@@ -80,7 +80,7 @@ function detectAnswerType(
   const match = options.find((o) => norm(o.text) === norm(raw))
   if (match) return { kind: 'single', normalized: match.key }
   // Fallback: scan for letter run
-  const letters = (cleaned.match(/[A-E]+/) || [''])[0]
+  const letters = (cleaned.match(/[A-J]+/) || [''])[0]
   if (letters.length > 1) return { kind: 'multi', normalized: letters.split('').sort().join('') }
   if (letters.length === 1) return { kind: 'single', normalized: letters }
   return { kind: 'judgement', normalized: '错误' }
@@ -199,14 +199,14 @@ function parseFile(spec: FileSpec, rawDir: string): RawQuestion[] {
       }
 
       // Option line — supports both per-line and inline `A.x B.y C.z` styles
-      if (/^[A-E][\.、）)]/.test(line)) {
+      if (/^[A-J][.、）)]/.test(line)) {
         sawOption = true
         const parts = line
-          .split(/(?=[A-E][\.、）)])/)
+          .split(/(?=[A-J][.、）)])/)
           .map((s) => s.trim())
-          .filter((p) => /^[A-E][\.、）)]/.test(p))
+          .filter((p) => /^[A-J][.、）)]/.test(p))
         for (const p of parts) {
-          const m = p.match(/^([A-E])[\.、）)]\s*(.+)$/)
+          const m = p.match(/^([A-J])[.、）)]\s*(.+)$/)
           if (m && !options.find((x) => x.key === m[1])) {
             options.push({ key: m[1], text: m[2].trim() })
           }
@@ -334,7 +334,49 @@ function main() {
     all.push(...parsed)
   }
 
-  const enriched = all.map((q, i) => {
+  // Domain-internal dedup. User rule: dedupe only within priority domain (p1-p4)
+  // or each unit domain (single/multi/judge). Cross-domain overlap is intentional.
+  const PRIORITY_DOMAIN = ['party-p1', 'party-p2', 'party-p3', 'party-p4']
+  const UNIT_DOMAINS = [['party-single'], ['party-multi'], ['party-judge']]
+  const prio = (gid: string): number => {
+    const i = PRIORITY_DOMAIN.indexOf(gid)
+    return i < 0 ? 100 : i
+  }
+  const domains: string[][] = [PRIORITY_DOMAIN, ...UNIT_DOMAINS]
+  const keepIds = new Set<string>()
+  for (const domain of domains) {
+    const domainSet = new Set(domain)
+    const inDomain = all.filter((q) => domainSet.has(q.groupId))
+    const byKey = new Map<string, RawQuestion[]>()
+    for (const q of inDomain) {
+      const normStem = q.stem
+        .replace(/\s+/g, '')
+        .replace(/[，。、；：！？""''（）()【】《》、,.;:!?"'[\]<>—－·…]/g, '')
+        .toLowerCase()
+      const k = normStem + '|' + q.questionType
+      if (!byKey.has(k)) byKey.set(k, [])
+      byKey.get(k)!.push(q)
+    }
+    for (const qs of byKey.values()) {
+      qs.sort((a, b) => {
+        if (b.options.length !== a.options.length) return b.options.length - a.options.length
+        const pa = prio(a.groupId)
+        const pb = prio(b.groupId)
+        if (pa !== pb) return pa - pb
+        return (b.explanation || '').length - (a.explanation || '').length
+      })
+      const kept = qs[0]
+      keepIds.add(`${kept.groupId}-q${String(kept.numberInGroup).padStart(5, '0')}`)
+    }
+  }
+  const filtered = all.filter((q) => {
+    if (!keepIds.has(`${q.groupId}-q${String(q.numberInGroup).padStart(5, '0')}`)) return false
+    // Quality filter: multi-choice with <3 options is useless (answer = all options)
+    if (q.questionType === 'multi' && q.options.length < 3) return false
+    return true
+  })
+
+  const enriched = filtered.map((q, i) => {
     const { tags, grammarPoints } = tagQuestion(q)
     return {
       id: `${q.groupId}-q${String(q.numberInGroup).padStart(5, '0')}`,

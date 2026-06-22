@@ -119,8 +119,8 @@ function setupObserver() {
   headings.forEach((h) => observer!.observe(h))
 }
 
-function openQuiz(subBank: '2021' | '2024') {
-  setActiveCategory('grammar')
+function openQuiz(subBank: 'grammar-2021' | 'grammar-2024') {
+  setActiveCategory('japanese2')
   setActiveSubBankKey(subBank)
   router.push('/quiz')
 }
@@ -143,7 +143,7 @@ const hiddenCards = [
     key: '2024',
     title: '2024 年期末真题',
     desc: '80 题 · 汉字读音/假名→汉字/语法选择/语序',
-    action: () => openQuiz('2024'),
+    action: () => openQuiz('grammar-2024'),
     label: '开始刷题',
     accent: '肆',
   },
@@ -151,7 +151,7 @@ const hiddenCards = [
     key: '2021',
     title: '2021 年期末真题',
     desc: '79 题 · 被动形/授受动词/可能形/読解',
-    action: () => openQuiz('2021'),
+    action: () => openQuiz('grammar-2021'),
     label: '开始刷题',
     accent: '壱',
   },

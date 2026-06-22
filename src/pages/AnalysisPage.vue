@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, watch } from 'vue'
 import { getRelevantData, getQuestionById } from '../services/quizEngine'
-import { useActiveCategory, loadActiveCategory } from '../services/categoryStore'
+import { useActiveCategory, loadActiveCategory, useActiveSubBankKey } from '../services/categoryStore'
 import { useHiddenSite } from '../composables/useHiddenSite'
 import { db } from '../db/database'
 import { truncate } from '../utils/text'
@@ -10,6 +10,8 @@ import PageSkeleton from '../components/PageSkeleton.vue'
 import type { QuestionStats, Question, Attempt } from '../types/question'
 
 const activeCategory = useActiveCategory()
+const activeSubBankKey = useActiveSubBankKey()
+const isWordSubBank = computed(() => activeSubBankKey.value === 'word')
 const { isUnlocked } = useHiddenSite()
 const questions = ref<Question[]>([])
 const stats = ref<QuestionStats[]>([])
@@ -73,9 +75,9 @@ const groupAnalysis = computed(() => {
 
 const tagAnalysis = computed(() => {
   // 候选列表基于已过滤的 questions.value，避开 getAllGrammarPoints 的全量缓存——
-  // 否则表站会看到「被动形」「授受动词」等只在 g11/g21+ 出现的语法点。
+  // 否则表站会看到「被动形」「授受动词」等只在 requireUnlock subBank 出现的语法点。
   const tagSource =
-    activeCategory.value === 'word'
+    isWordSubBank.value
       ? questions.value
           .flatMap((q) => q.tags)
           .filter((t) => t !== '单词')
@@ -149,8 +151,8 @@ const overallStats = computed(() => {
   }
 })
 
-const tagTableHeader = computed(() => (activeCategory.value === 'word' ? '课/标签' : '语法点'))
-const tagTabLabel = computed(() => (activeCategory.value === 'word' ? '按课/标签' : '按语法标签'))
+const tagTableHeader = computed(() => (isWordSubBank.value ? '课/标签' : '语法点'))
+const tagTabLabel = computed(() => (isWordSubBank.value ? '按课/标签' : '按语法标签'))
 
 // 最近 40 次答题的点阵：每个点 = 一次 attempt，绿=对、红=错。无依赖 SVG/Canvas。
 const trendDots = computed(() => {

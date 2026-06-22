@@ -1,19 +1,21 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { useActiveCategory, loadActiveCategory, setActiveCategory } from './services/categoryStore'
+import { useActiveCategory, loadActiveCategory, setActiveCategory, setActiveSubBankKey, useActiveSubBankKey } from './services/categoryStore'
 import { getQuestionById } from './services/quizEngine'
-import { CATEGORIES } from './config/categories'
+import { COURSE_TREE } from './config/courseTree'
 import { useHiddenSite } from './composables/useHiddenSite'
 import type { Category } from './types/question'
 import SearchOverlay from './components/SearchOverlay.vue'
+import TreeNav from './components/TreeNav.vue'
 
 const router = useRouter()
 const route = useRoute()
 const routeKey = ref(0)
 const activeCategory = useActiveCategory()
+const activeSubBank = useActiveSubBankKey()
 const searchOpen = ref(false)
-const mobileMenuOpen = ref(false)
+const drawerOpen = ref(false)
 
 const { isUnlocked, unlockProgress, startLongPress, cancelLongPress, lock } = useHiddenSite()
 
@@ -21,7 +23,6 @@ function exitHidden() {
   lock()
 }
 
-// Long press handlers — both touch and mouse
 let pressStartX = 0
 let pressStartY = 0
 function onPressStart(e: MouseEvent | TouchEvent) {
@@ -68,18 +69,29 @@ onMounted(async () => {
 })
 
 function navigateTo(path: string) {
-  mobileMenuOpen.value = false
+  drawerOpen.value = false
   if (route.path === path) {
     routeKey.value++
   }
   router.push(path)
 }
 
-function switchCategory(cat: Category) {
-  mobileMenuOpen.value = false
-  if (cat !== activeCategory.value) {
-    setActiveCategory(cat)
+async function onSelectLeaf(payload: {
+  category: Category
+  subBank: string | null
+  route?: string
+}) {
+  drawerOpen.value = false
+  if (payload.route) {
+    if (route.path === payload.route) routeKey.value++
+    router.push(payload.route)
+    return
   }
+  if (payload.category !== activeCategory.value) {
+    await setActiveCategory(payload.category)
+  }
+  // 始终设置 subBank（包括 null），切换同 category 内的子题库
+  setActiveSubBankKey(payload.subBank)
   if (route.path === '/home') {
     routeKey.value++
   }
@@ -88,7 +100,7 @@ function switchCategory(cat: Category) {
 
 function handleSearchNavigate(questionId: string) {
   searchOpen.value = false
-  mobileMenuOpen.value = false
+  drawerOpen.value = false
   const q = getQuestionById(questionId)
   if (!q) return
   if (q.category !== activeCategory.value) {
@@ -96,88 +108,74 @@ function handleSearchNavigate(questionId: string) {
   }
   router.push({ path: '/quiz', query: { ids: questionId } })
 }
-
-function openSearchFromMobile() {
-  searchOpen.value = true
-  mobileMenuOpen.value = false
-}
 </script>
 <template>
   <div class="app-shell">
     <nav class="nav">
       <div class="nav-left">
+        <button
+          class="nav-drawer-btn"
+          @click="drawerOpen = !drawerOpen"
+          :aria-expanded="drawerOpen"
+          aria-label="课程菜单"
+        >
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
         <div class="nav-brand" @click="router.push('/')">题库</div>
+      </div>
+      <div class="nav-desktop-links">
+        <a
+          v-for="l in navLinks"
+          :key="l.to"
+          :class="{ 'router-link-active': route.path === l.to }"
+          href="#"
+          @click.prevent="navigateTo(l.to)"
+          >{{ l.label }}</a
+        >
+        <button class="search-trigger" @click="searchOpen = true">⌕ 搜索</button>
+      </div>
+      <div class="nav-right-mobile">
         <button class="nav-search-icon" @click="searchOpen = true" aria-label="搜索">⌕</button>
       </div>
-      <div class="nav-desktop">
-        <div class="category-switch">
-          <button
-            v-for="c in CATEGORIES"
-            :key="c.key"
-            :class="['cat-btn', { active: activeCategory === c.key }]"
-            @click="switchCategory(c.key)"
-          >
-            {{ c.short }}
-          </button>
-          <button
-            v-if="isUnlocked"
-            :class="['cat-btn', { active: route.path === '/calculus-notes' }]"
-            @click="router.push('/calculus-notes')"
-          >
-            微积分
-          </button>
-        </div>
-        <div class="nav-links">
-          <a
-            v-for="l in navLinks"
-            :key="l.to"
-            :class="{ 'router-link-active': route.path === l.to }"
-            href="#"
-            @click.prevent="navigateTo(l.to)"
-            >{{ l.label }}</a
-          >
-          <button class="search-trigger" @click="searchOpen = true">⌕ 搜索</button>
-        </div>
-      </div>
-      <button class="nav-hamburger" @click="mobileMenuOpen = !mobileMenuOpen" aria-label="菜单">
-        <span></span>
-        <span></span>
-        <span></span>
-      </button>
     </nav>
 
-    <Transition name="nav-mobile">
-      <div v-if="mobileMenuOpen" class="nav-mobile-backdrop" @click="mobileMenuOpen = false">
-        <div class="nav-mobile-menu" @click.stop>
-          <div class="nav-mobile-section">
-            <div class="nav-mobile-section-title">导航</div>
-            <a
-              v-for="l in navLinks"
-              :key="l.to"
-              :class="{ 'router-link-active': route.path === l.to }"
-              href="#"
-              @click.prevent="navigateTo(l.to)"
-              >{{ l.label }}</a
-            >
-            <button class="mobile-search-trigger" @click="openSearchFromMobile">⌕ 搜索题目</button>
+    <Transition name="drawer">
+      <div v-if="drawerOpen" class="drawer-backdrop" @click="drawerOpen = false">
+        <div class="drawer-panel" @click.stop>
+          <div class="drawer-header">
+            <span class="drawer-title">课程导航</span>
+            <button class="drawer-close" @click="drawerOpen = false" aria-label="关闭">✕</button>
           </div>
-          <div class="nav-mobile-section">
-            <div class="nav-mobile-section-title">切换题库</div>
-            <button
-              v-for="c in CATEGORIES"
-              :key="c.key"
-              :class="{ active: activeCategory === c.key }"
-              @click="switchCategory(c.key)"
-            >
-              {{ c.short }}
-            </button>
-            <button
-              v-if="isUnlocked"
-              :class="{ active: route.path === '/calculus-notes' }"
-              @click="mobileMenuOpen = false; router.push('/calculus-notes')"
-            >
-              微积分
-            </button>
+          <div class="drawer-body">
+            <div class="drawer-section">
+              <div class="drawer-section-title">主导航</div>
+              <div class="drawer-nav-links">
+                <a
+                  v-for="l in navLinks"
+                  :key="l.to"
+                  :class="{ 'router-link-active': route.path === l.to }"
+                  href="#"
+                  @click.prevent="navigateTo(l.to)"
+                  >{{ l.label }}</a
+                >
+                <button class="mobile-search-trigger" @click="searchOpen = true; drawerOpen = false">
+                  ⌕ 搜索题目
+                </button>
+              </div>
+            </div>
+            <div class="drawer-section">
+              <div class="drawer-section-title">题库</div>
+              <TreeNav
+                :nodes="COURSE_TREE"
+                :active-category="activeCategory"
+                :active-sub-bank="activeSubBank"
+                :current-route="route.path"
+                :is-unlocked="isUnlocked"
+                @select-leaf="onSelectLeaf"
+              />
+            </div>
           </div>
         </div>
       </div>
@@ -243,14 +241,35 @@ function openSearchFromMobile() {
   position: sticky;
   top: 0;
   z-index: 100;
-  overflow: hidden;
 }
 
 .nav-left {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   flex-shrink: 0;
+}
+
+.nav-drawer-btn {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  background: none;
+  border: none;
+  padding: 6px 4px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.nav-drawer-btn span {
+  display: block;
+  width: 18px;
+  height: 2px;
+  background: var(--text-primary);
+  transition: background 0.18s var(--ease-ink);
+  border-radius: 1px;
+}
+.nav-drawer-btn:hover span {
+  background: var(--accent);
 }
 
 .nav-brand {
@@ -265,8 +284,71 @@ function openSearchFromMobile() {
   user-select: none;
 }
 
-.nav-search-icon {
+.nav-desktop-links {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+.nav-desktop-links a,
+.nav-desktop-links button {
+  padding: 4px 8px;
+  text-decoration: none;
+  color: var(--text-secondary);
+  font-size: 13px;
+  transition:
+    color 0.18s var(--ease-ink),
+    background 0.18s var(--ease-ink);
+  white-space: nowrap;
+  border-radius: 2px;
+  position: relative;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+}
+.nav-desktop-links a::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 8px;
+  right: 8px;
+  height: 2px;
+  background: var(--accent);
+  transform: scaleX(0);
+  transition: transform 0.22s var(--ease-brush);
+  transform-origin: left center;
+}
+.nav-desktop-links a:hover::after {
+  transform: scaleX(1);
+}
+.nav-desktop-links a:hover {
+  color: var(--text-primary);
+  background: var(--bg-hover);
+}
+.nav-desktop-links a.router-link-active {
+  color: var(--accent);
+  font-weight: 500;
+}
+.nav-desktop-links a.router-link-active::after {
+  transform: scaleX(1);
+}
+
+.search-trigger {
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+}
+.search-trigger:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.nav-right-mobile {
   display: none;
+  margin-left: auto;
+}
+.nav-search-icon {
   background: none;
   border: none;
   color: var(--text-secondary);
@@ -279,169 +361,88 @@ function openSearchFromMobile() {
   color: var(--accent);
 }
 
-.nav-desktop {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  flex: 1;
-  min-width: 0;
-}
-
-.category-switch {
-  display: flex;
-  gap: 2px;
-  flex-shrink: 0;
-}
-.cat-btn {
-  padding: 3px 8px;
-  border: none;
-  background: transparent;
-  color: var(--text-secondary);
-  font-size: 13px;
-  transition:
-    color 0.18s var(--ease-ink),
-    background 0.18s var(--ease-ink);
-  white-space: nowrap;
-  position: relative;
-}
-.cat-btn:hover {
-  color: var(--text-primary);
-}
-.cat-btn.active {
-  color: var(--accent);
-  font-weight: 500;
-}
-
-.nav-links {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  margin-left: auto;
-  flex-shrink: 0;
-}
-.nav-links a,
-.nav-links button {
-  padding: 4px 8px;
-  text-decoration: none;
-  color: var(--text-secondary);
-  font-size: 13px;
-  transition:
-    color 0.18s var(--ease-ink),
-    background 0.18s var(--ease-ink);
-  white-space: nowrap;
-  border-radius: 2px;
-  position: relative;
-}
-.nav-links a::after {
-  content: '';
-  position: absolute;
-  bottom: 0;
-  left: 8px;
-  right: 8px;
-  height: 2px;
-  background: var(--accent);
-  transform: scaleX(0);
-  transition: transform 0.22s var(--ease-brush);
-  transform-origin: left center;
-}
-.nav-links a:hover::after {
-  transform: scaleX(1);
-}
-.nav-links a {
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  font-family: inherit;
-}
-.nav-links a:hover {
-  color: var(--text-primary);
-  background: var(--bg-hover);
-}
-.nav-links a.router-link-active {
-  color: var(--accent);
-  font-weight: 500;
-}
-.nav-links a.router-link-active::after {
-  transform: scaleX(1);
-}
-
-.search-trigger {
-  background: none;
-  border: 1px solid var(--border);
-  font-family: inherit;
-  font-size: 13px;
-  color: var(--text-muted);
-  padding: 3px 8px;
-  cursor: pointer;
-  transition:
-    color 0.18s var(--ease-ink),
-    border-color 0.18s var(--ease-ink);
-  white-space: nowrap;
-}
-.search-trigger:hover {
-  color: var(--accent);
-  border-color: var(--accent);
-}
-
-.nav-hamburger {
-  display: none;
-  flex-direction: column;
-  gap: 3px;
-  background: none;
-  border: none;
-  padding: 6px;
-  cursor: pointer;
-  margin-left: auto;
-  flex-shrink: 0;
-}
-.nav-hamburger span {
-  display: block;
-  width: 18px;
-  height: 2px;
-  background: var(--text-primary);
-  transition: background 0.18s var(--ease-ink);
-  border-radius: 1px;
-}
-.nav-hamburger:hover span {
-  background: var(--accent);
-}
-
-.nav-mobile-backdrop {
+/* Drawer */
+.drawer-backdrop {
   position: fixed;
-  top: 44px;
+  top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.25);
-  z-index: 99;
+  background: rgba(0, 0, 0, 0.3);
+  z-index: 200;
 }
-.nav-mobile-menu {
+.drawer-panel {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: min(320px, 86vw);
   background: var(--bg-card);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
   border-bottom: 1px solid var(--border);
-  padding: 8px 0;
+  flex-shrink: 0;
 }
-.nav-mobile-section {
-  padding: 8px 16px;
+.drawer-title {
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 2px;
+  color: var(--text-primary);
 }
-.nav-mobile-section + .nav-mobile-section {
+.drawer-close {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 16px;
+  cursor: pointer;
+  padding: 4px 8px;
+  line-height: 1;
+}
+.drawer-close:hover {
+  color: var(--accent);
+}
+.drawer-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 0 20px;
+}
+.drawer-section {
+  padding: 8px 12px;
+}
+.drawer-section + .drawer-section {
   border-top: 1px solid var(--border);
+  margin-top: 8px;
   padding-top: 12px;
-  margin-top: 4px;
 }
-.nav-mobile-section-title {
+.drawer-section-title {
   font-size: 11px;
   color: var(--text-muted);
   letter-spacing: 1px;
   margin-bottom: 8px;
   font-weight: 600;
   text-transform: uppercase;
+  padding: 0 4px;
 }
-.nav-mobile-section a,
-.nav-mobile-section button {
+.drawer-nav-links {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.drawer-nav-links a,
+.drawer-nav-links button {
   display: block;
   width: 100%;
   text-align: left;
-  padding: 8px 12px;
+  padding: 8px 10px;
   font-size: 14px;
   color: var(--text-primary);
   text-decoration: none;
@@ -449,21 +450,19 @@ function openSearchFromMobile() {
   border: none;
   font-family: inherit;
   cursor: pointer;
-  border-radius: 2px;
+  border-radius: 3px;
   transition:
     background 0.15s var(--ease-ink),
     color 0.15s var(--ease-ink);
 }
-.nav-mobile-section a:hover,
-.nav-mobile-section button:hover {
+.drawer-nav-links a:hover,
+.drawer-nav-links button:hover {
   background: var(--bg-hover);
 }
-.nav-mobile-section a.router-link-active,
-.nav-mobile-section button.active {
+.drawer-nav-links a.router-link-active {
   color: var(--accent);
   font-weight: 500;
 }
-
 .mobile-search-trigger {
   color: var(--text-muted) !important;
   margin-top: 4px;
@@ -472,21 +471,30 @@ function openSearchFromMobile() {
   color: var(--accent) !important;
 }
 
-.nav-mobile-enter-active {
-  transition: opacity 0.16s var(--ease-page);
+/* Drawer transitions */
+.drawer-enter-active {
+  transition: opacity 0.18s var(--ease-page);
 }
-.nav-mobile-leave-active {
-  transition: opacity 0.12s var(--ease-ink);
+.drawer-leave-active {
+  transition: opacity 0.14s var(--ease-ink);
 }
-.nav-mobile-enter-from,
-.nav-mobile-leave-to {
+.drawer-enter-from,
+.drawer-leave-to {
   opacity: 0;
 }
-.nav-mobile-enter-active .nav-mobile-menu {
-  animation: fade-down 0.2s var(--ease-page) both;
+.drawer-enter-active .drawer-panel {
+  animation: drawer-slide-in 0.22s var(--ease-page) both;
 }
-.nav-mobile-leave-active .nav-mobile-menu {
-  animation: fade-up 0.12s var(--ease-ink) both reverse;
+.drawer-leave-active .drawer-panel {
+  animation: drawer-slide-in 0.14s var(--ease-ink) both reverse;
+}
+@keyframes drawer-slide-in {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
 }
 
 .main {
@@ -576,14 +584,11 @@ function openSearchFromMobile() {
     gap: 8px;
     padding: 0 12px;
   }
-  .nav-hamburger {
-    display: flex;
-  }
-  .nav-desktop {
+  .nav-desktop-links {
     display: none;
   }
-  .nav-search-icon {
-    display: block;
+  .nav-right-mobile {
+    display: flex;
   }
   .nav-brand {
     font-size: 15px;
@@ -601,13 +606,8 @@ function openSearchFromMobile() {
   .nav {
     gap: 8px;
     padding: 0 14px;
-    overflow-x: auto;
   }
-  .cat-btn {
-    padding: 2px 5px;
-    font-size: 12px;
-  }
-  .nav-links a {
+  .nav-desktop-links a {
     padding: 3px 5px;
     font-size: 12px;
   }

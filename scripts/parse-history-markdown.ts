@@ -83,18 +83,18 @@ function stripQuotePrefix(line: string): string {
 function splitMultiOptionLine(line: string): string[] | null {
   // Detect "A、xxx B、yyy C、zzz" style (file C). Require at least 2 letter-prefixed segments.
   const trimmed = line.trim()
-  if (!/^[A-E][\.、）)]/.test(trimmed)) return null
+  if (!/^[A-J][\.、）)]/.test(trimmed)) return null
   const parts = trimmed
-    .split(/(?=[A-E][\.、）)])/)
+    .split(/(?=[A-J][\.、）)])/)
     .map((s) => s.trim())
     .filter(Boolean)
   if (parts.length < 2) return null
-  if (!parts.every((p) => /^[A-E][\.、）)]/.test(p))) return null
+  if (!parts.every((p) => /^[A-J][\.、)]/.test(p))) return null
   return parts
 }
 
 function parseOptionsFromLine(line: string): { key: string; text: string } | null {
-  const m = line.match(/^([A-E])[\.、）)]\s*(.+)$/)
+  const m = line.match(/^([A-J])[\.、）)]\s*(.+)$/)
   if (!m) return null
   return { key: m[1], text: m[2].trim().replace(/\s+$/, '') }
 }
@@ -122,14 +122,14 @@ function detectAnswerType(raw: string): {
       normalized: cleaned === '对' ? '正确' : cleaned === '错' ? '错误' : cleaned,
     }
   }
-  if (/^[A-E]+$/.test(cleaned)) {
+  if (/^[A-J]+$/.test(cleaned)) {
     const sorted = cleaned.split('').sort().join('')
     return cleaned.length > 1
       ? { kind: 'multi', normalized: sorted }
       : { kind: 'single', normalized: cleaned }
   }
   // Fall back: take leading letter run.
-  const letters = (cleaned.match(/[A-E]+/) || [''])[0]
+  const letters = (cleaned.match(/[A-J]+/) || [''])[0]
   if (letters.length > 1) return { kind: 'multi', normalized: letters.split('').sort().join('') }
   if (letters.length === 1) return { kind: 'single', normalized: letters }
   return { kind: 'judgement', normalized: '错误' }
@@ -238,12 +238,12 @@ function parseFile(spec: FileSpec, rawDir: string): RawQuestion[] {
 
       // Option detection. A line starting with an option-letter prefix may contain
       // multiple options separated by spaces (file B/C style). Split uniformly.
-      if (/^[A-E][\.、）)]/.test(line)) {
+      if (/^[A-J][\.、）)]/.test(line)) {
         sawOption = true
         const parts = line
-          .split(/(?=[A-E][\.、）)])/)
+          .split(/(?=[A-J][\.、）)])/)
           .map((s) => s.trim())
-          .filter((p) => /^[A-E][\.、）)]/.test(p))
+          .filter((p) => /^[A-J][\.、)]/.test(p))
         for (const p of parts) {
           const o = parseOptionsFromLine(p)
           if (o && !options.find((x) => x.key === o.key)) options.push(o)
@@ -382,8 +382,72 @@ function main() {
     all.push(...parsed)
   }
 
+  // Domain-internal dedup. User rule: duplicates are only compared WITHIN a single domain
+  // (priority domain: t0/t1/t2/t3/t5-*, or each unit domain: hist-a / hist-b / hist-c).
+  // Cross-domain overlap (e.g. t0 vs hist-a) is intentional — do NOT dedupe across.
+  const PRIORITY_DOMAIN = new Set(['t0', 't1', 't2', 't3', 't5-1', 't5-2', 't5-3', 't5-4'])
+  const UNIT_DOMAINS = [['hist-a'], ['hist-b'], ['hist-c']]
+  // Priority within a domain — lower wins.
+  const PRIO_ORDER = ['t0', 't1', 't2', 't3', 't5-1', 't5-2', 't5-3', 't5-4']
+  const prio = (gid: string): number => {
+    const i = PRIO_ORDER.indexOf(gid)
+    return i < 0 ? 100 : i
+  }
+  // AI-curated: questions to drop because they are answer-conflict duplicates
+  // (same stem+type as another question in the same domain, but this version's answer is wrong)
+  const DROP_WRONG_ANSWER = new Set<string>([
+    't2-q00090',  // "百日维新书改"答"高等学校"，正解"高等学堂"(t0-q00183)
+    't1-q00233',  // "三种建国方案"第三项"官僚资本主义方案"错，正解"工人阶级方案"(t3-q00087)
+  ])
+
+  const domains: string[][] = [PRIO_ORDER, ...UNIT_DOMAINS]
+  const keepIds = new Set<string>()
+  for (const domain of domains) {
+    const domainSet = new Set(domain)
+    const inDomain = all.filter((q) => domainSet.has(q.groupId))
+    const byKey = new Map<string, RawQuestion[]>()
+    for (const q of inDomain) {
+      const normStem = q.stem
+        .replace(/\s+/g, '')
+        .replace(/[，。、；：！？""''（）()【】《》、,.;:!?"'[\]<>—－·…]/g, '')
+        .toLowerCase()
+      const k = normStem + '|' + q.questionType
+      if (!byKey.has(k)) byKey.set(k, [])
+      byKey.get(k)!.push(q)
+    }
+    for (const qs of byKey.values()) {
+      if (qs.length === 1) {
+        const q = qs[0]
+        keepIds.add(`${q.groupId}-q${String(q.numberInGroup).padStart(5, '0')}`)
+        continue
+      }
+      // Sort: prefer more options, then higher-priority group, then longer explanation.
+      // Also drop explicitly-wrong-answer versions.
+      qs.sort((a, b) => {
+        const aid = `${a.groupId}-q${String(a.numberInGroup).padStart(5, '0')}`
+        const bid = `${b.groupId}-q${String(b.numberInGroup).padStart(5, '0')}`
+        const aDrop = DROP_WRONG_ANSWER.has(aid) ? 1 : 0
+        const bDrop = DROP_WRONG_ANSWER.has(bid) ? 1 : 0
+        if (aDrop !== bDrop) return aDrop - bDrop // dropped version goes last
+        if (b.options.length !== a.options.length) return b.options.length - a.options.length
+        const pa = prio(a.groupId)
+        const pb = prio(b.groupId)
+        if (pa !== pb) return pa - pb
+        return (b.explanation || '').length - (a.explanation || '').length
+      })
+      const kept = qs[0]
+      keepIds.add(`${kept.groupId}-q${String(kept.numberInGroup).padStart(5, '0')}`)
+    }
+  }
+  const filtered = all.filter((q) => {
+    if (!keepIds.has(`${q.groupId}-q${String(q.numberInGroup).padStart(5, '0')}`)) return false
+    // Quality filter: multi-choice with <3 options is useless (answer = all options)
+    if (q.questionType === 'multi' && q.options.length < 3) return false
+    return true
+  })
+
   // Enrich + assign IDs
-  const enriched = all.map((q, i) => {
+  const enriched = filtered.map((q, i) => {
     const { tags, grammarPoints } = tagQuestion(q)
     return {
       id: `${q.groupId}-q${String(q.numberInGroup).padStart(5, '0')}`,

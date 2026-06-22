@@ -15,11 +15,11 @@ const BANK_FILES: Record<Category, string> = CATEGORIES.reduce(
   {} as Record<Category, string>,
 )
 
-// 里站专属 groupId：所有「非 textbook」subBank 的 groupOrder 并集。
+// 里站专属 groupId：所有 requireUnlock subBank 的 groupOrder 并集。
 // 表站未解锁时，所有表站页面与答题流都应过滤掉这些题。
 export const HIDDEN_GROUP_IDS: ReadonlySet<string> = new Set(
   CATEGORIES.flatMap((c) => c.subBanks ?? [])
-    .filter((sb) => sb.key !== 'textbook')
+    .filter((sb) => sb.requireUnlock)
     .flatMap((sb) => sb.groupOrder),
 )
 
@@ -45,7 +45,7 @@ export function shuffleQuestionOptions(q: Question): Question {
   }
 }
 
-export async function loadQuestionBank(category: Category = 'grammar'): Promise<Question[]> {
+export async function loadQuestionBank(category: Category = 'japanese2'): Promise<Question[]> {
   const cached = cache.get(category)
   if (cached) return cached
   const base = import.meta.env.BASE_URL
@@ -63,7 +63,7 @@ export async function loadQuestionBank(category: Category = 'grammar'): Promise<
   return questions
 }
 
-export function getQuestions(category: Category = 'grammar'): Question[] {
+export function getQuestions(category: Category = 'japanese2'): Question[] {
   return cache.get(category) || []
 }
 
@@ -75,18 +75,18 @@ export function getQuestionById(id: string): Question | undefined {
   return undefined
 }
 
-export function getQuestionsByTag(tag: string, category: Category = 'grammar'): Question[] {
+export function getQuestionsByTag(tag: string, category: Category = 'japanese2'): Question[] {
   const list = cache.get(category) || []
   return list.filter((q) => q.tags.includes(tag) || q.grammarPoints.includes(tag))
 }
 
-export function getQuestionsByGroup(groupId: string, category: Category = 'grammar'): Question[] {
+export function getQuestionsByGroup(groupId: string, category: Category = 'japanese2'): Question[] {
   const list = cache.get(category) || []
   return list.filter((q) => q.groupId === groupId)
 }
 
 export function getAllGroups(
-  category: Category = 'grammar',
+  category: Category = 'japanese2',
 ): { groupId: string; groupTitle: string; count: number }[] {
   const cached = groupsCache.get(category)
   if (cached) return cached
@@ -106,7 +106,7 @@ export function getAllGroups(
   return result
 }
 
-export function getAllTags(category: Category = 'grammar'): { tag: string; count: number }[] {
+export function getAllTags(category: Category = 'japanese2'): { tag: string; count: number }[] {
   const cached = tagsCache.get(category)
   if (cached) return cached
   const map = new Map<string, number>()
@@ -124,7 +124,7 @@ export function getAllTags(category: Category = 'grammar'): { tag: string; count
 }
 
 export function getAllGrammarPoints(
-  category: Category = 'grammar',
+  category: Category = 'japanese2',
 ): { point: string; count: number }[] {
   const cached = grammarPointsCache.get(category)
   if (cached) return cached

@@ -163,7 +163,11 @@ const subTypeLabel = computed(() => {
   return ''
 })
 
-const tagsSectionTitle = computed(() => (props.question.category === 'word' ? '标签' : '考点'))
+const tagsSectionTitle = computed(() =>
+  props.question.subType === 'kana-to-kanji' || props.question.subType === 'kanji-to-kana'
+    ? '标签'
+    : '考点',
+)
 
 const cardStyle = computed(() => ({
   transform: dragOffset.value ? `translateX(${dragOffset.value}px)` : '',

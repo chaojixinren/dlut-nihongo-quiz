@@ -4,7 +4,7 @@ import type { Question } from '../types/question'
 
 const baseQuestion = (overrides: Partial<Question> = {}): Question => ({
   id: 'q1',
-  category: 'grammar',
+  category: 'japanese2',
   groupId: 'g1',
   groupTitle: 'G1',
   numberInGroup: 1,

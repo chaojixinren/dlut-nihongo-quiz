@@ -1,10 +1,11 @@
-export type Category = 'grammar' | 'word' | 'history' | 'party' | 'military'
+export type Category = 'japanese2' | 'history' | 'party' | 'military'
 
 export interface SubBankMeta {
   key: string
   name: string
   desc: string
   groupOrder: string[]
+  requireUnlock?: boolean
   groupViewTitle?: string
   groupViewHint?: string
 }
