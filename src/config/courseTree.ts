@@ -62,7 +62,6 @@ export const COURSE_TREE: TreeNode[] = [
         key: 'calculus-notes',
         label: '微积分',
         route: '/calculus-notes',
-        requireUnlock: true,
         icon: '∫',
       },
       {
