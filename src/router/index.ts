@@ -29,6 +29,11 @@ const router = createRouter({
       name: 'physics-notes',
       component: () => import('../pages/PhysicsNotesPage.vue'),
     },
+    {
+      path: '/listening-speaking-notes',
+      name: 'listening-speaking-notes',
+      component: () => import('../pages/ListeningSpeakingNotesPage.vue'),
+    },
   ],
 })
 

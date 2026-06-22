@@ -5,11 +5,9 @@ import { getCategoryCounts } from '../services/quizEngine'
 import { loadActiveCategory, setActiveCategory } from '../services/categoryStore'
 import { CATEGORIES } from '../config/categories'
 import { db } from '../db/database'
-import { useHiddenSite } from '../composables/useHiddenSite'
 import type { Category } from '../types/question'
 
 const router = useRouter()
-const { isUnlocked } = useHiddenSite()
 
 const counts = ref<Record<Category, number>>({} as Record<Category, number>)
 const totalDone = ref(0)
@@ -86,7 +84,7 @@ const subjects = computed(() =>
     <section class="subjects">
       <h2>选择学科，开始复习</h2>
       <div class="subject-grid">
-        <div v-if="isUnlocked" class="subject-card calculus-card" @click="goCalculusNotes">
+        <div class="subject-card calculus-card" @click="goCalculusNotes">
           <div class="sc-icon">微</div>
           <div class="sc-body">
             <h3 class="sc-title">微积分2</h3>

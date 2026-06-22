@@ -52,6 +52,13 @@ export const COURSE_TREE: TreeNode[] = [
       { type: 'leaf', key: 'military', label: '军事理论', category: 'military', subBank: null },
       {
         type: 'leaf',
+        key: 'listening-speaking-notes',
+        label: '日语听说进阶',
+        route: '/listening-speaking-notes',
+        icon: '听',
+      },
+      {
+        type: 'leaf',
         key: 'calculus-notes',
         label: '微积分',
         route: '/calculus-notes',
