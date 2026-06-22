@@ -129,6 +129,18 @@ const FILES = [
       return /^####\s+\d+\s*[\.、]/.test(t) || /^---\s*$/.test(t) || /^##\s/.test(t)
     },
   },
+  {
+    name: 'history_d',
+    aliases: ['hist-d'],
+    path: 'data/raw/history/5-历史练习题（章节版）.md',
+    sectionStart: null,
+    sectionEnd: null,
+    qHdr: /^(>?\s*)?####\s+(\d+)\s*[\.、]\s*(.+?)\s*$/,
+    nextBoundary: (l) => {
+      const t = l.replace(/^>\s*/, '').trim()
+      return /^####\s+\d+\s*[\.、]/.test(t) || /^---\s*$/.test(t) || /^##\s/.test(t)
+    },
+  },
 ]
 
 // Resolve sectionStart/sectionEnd at runtime based on --priority for specs
@@ -274,6 +286,7 @@ function parseBlock(lines, block, spec) {
     explanationLines: expStartAbs >= 0 ? lines.slice(expStartAbs, expEndAbs) : [],
     expStartAbs,
     expEndAbs,
+    answerIdx,
   }
 }
 
@@ -479,12 +492,7 @@ async function processFile(spec) {
         skipped++
         continue
       }
-      if (parsed.explanationLines.length === 0) {
-        if (process.env.DEBUG_SKIP) console.log(`  [skip ${spec.name}#${myIdx + 1}] no explanation`)
-        skipped++
-        continue
-      }
-      if (!force && isAlreadyEnriched(parsed.explanationLines)) {
+      if (!force && parsed.explanationLines.length > 0 && isAlreadyEnriched(parsed.explanationLines)) {
         skipped++
         continue
       }
@@ -501,6 +509,7 @@ async function processFile(spec) {
         history: '中国近现代史纲要',
         history_t0: '中国近现代史纲要',
         history_t1: '中国近现代史纲要',
+        history_d: '中国近现代史纲要',
       }[spec.name]
       const label = `[${spec.name}#${myIdx + 1}]`
 
@@ -523,21 +532,30 @@ async function processFile(spec) {
 
         const normalized = normalizeAiOutput(enriched)
 
-        // Build new explanation block. Preserve the leading "**解析**：" or "**解析：**" marker
-        // from the original file so we don't fight the existing parser's regex.
-        const origFirstLine = lines[parsed.expStartAbs].replace(/^>\s*/, '')
+        // Build new explanation block.
         let prefix
-        if (/^\*\*解析[：:]/.test(origFirstLine.trim())) {
-          // history style: **解析：** ...
-          prefix = '**解析：**'
+        let startLine, endLine
+        if (parsed.expStartAbs >= 0) {
+          // Has existing explanation — replace it. Preserve the leading marker style.
+          const origFirstLine = lines[parsed.expStartAbs].replace(/^>\s*/, '')
+          if (/^\*\*解析[：:]/.test(origFirstLine.trim())) {
+            prefix = '**解析：**'
+          } else {
+            prefix = '**解析**：'
+          }
+          startLine = parsed.expStartAbs
+          endLine = parsed.expEndAbs
         } else {
-          // party / military style: **解析**：...
-          prefix = '**解析**：'
+          // No existing explanation — insert after the answer line.
+          prefix = '**解析：**'
+          const absAnswerIdx = block.bodyStartIdx + parsed.answerIdx
+          startLine = absAnswerIdx + 1
+          endLine = absAnswerIdx + 1
         }
 
         const newLines = [prefix, ...normalized.split('\n').map((l) => l.trimEnd())]
 
-        replacements.push({ startLine: parsed.expStartAbs, endLine: parsed.expEndAbs, newLines })
+        replacements.push({ startLine, endLine, newLines })
 
         processed++
         if (processed % 10 === 0) console.log(`  ✓ ${processed} enriched`)

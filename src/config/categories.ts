@@ -58,10 +58,11 @@ export const CATEGORIES: CategoryMeta[] = [
     key: 'history',
     short: '近代史',
     long: '中国近现代史',
-    desc: '11个刷题单 · 单选/多选/判断 · 机考模拟',
+    desc: '12个刷题单 · 单选/多选/判断 · 机考模拟',
     icon: '史',
     bankFile: 'history-question-bank.json',
     groupOrder: [
+      'hist-d',
       't0',
       't1',
       't2',

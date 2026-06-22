@@ -68,6 +68,11 @@ const FILES: FileSpec[] = [
     baseGroupId: 'hist-c',
     baseGroupTitle: '纲要分章题库（完整版）',
   },
+  {
+    file: '5-历史练习题（章节版）.md',
+    baseGroupId: 'hist-d',
+    baseGroupTitle: '历史练习题（章节版）',
+  },
 ]
 
 const SUB_NUM_MAP: Record<string, string> = { 一: '1', 二: '2', 三: '3', 四: '4' }
@@ -386,7 +391,7 @@ function main() {
   // (priority domain: t0/t1/t2/t3/t5-*, or each unit domain: hist-a / hist-b / hist-c).
   // Cross-domain overlap (e.g. t0 vs hist-a) is intentional — do NOT dedupe across.
   const PRIORITY_DOMAIN = new Set(['t0', 't1', 't2', 't3', 't5-1', 't5-2', 't5-3', 't5-4'])
-  const UNIT_DOMAINS = [['hist-a'], ['hist-b'], ['hist-c']]
+  const UNIT_DOMAINS = [['hist-a'], ['hist-b'], ['hist-c'], ['hist-d']]
   // Priority within a domain — lower wins.
   const PRIO_ORDER = ['t0', 't1', 't2', 't3', 't5-1', 't5-2', 't5-3', 't5-4']
   const prio = (gid: string): number => {
