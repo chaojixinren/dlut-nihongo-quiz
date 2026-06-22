@@ -58,6 +58,20 @@ export const COURSE_TREE: TreeNode[] = [
         requireUnlock: true,
         icon: '∫',
       },
+      {
+        type: 'leaf',
+        key: 'physics-notes',
+        label: '大学物理1',
+        route: '/physics-notes',
+        icon: '物',
+      },
+      {
+        type: 'leaf',
+        key: 'digital-circuit-notes',
+        label: '数字电路（软国）',
+        route: '/digital-circuit-notes',
+        icon: '电',
+      },
     ],
   },
   {

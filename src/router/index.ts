@@ -19,6 +19,16 @@ const router = createRouter({
       name: 'calculus-notes',
       component: () => import('../pages/CalculusNotesPage.vue'),
     },
+    {
+      path: '/digital-circuit-notes',
+      name: 'digital-circuit-notes',
+      component: () => import('../pages/DigitalCircuitNotesPage.vue'),
+    },
+    {
+      path: '/physics-notes',
+      name: 'physics-notes',
+      component: () => import('../pages/PhysicsNotesPage.vue'),
+    },
   ],
 })
 
