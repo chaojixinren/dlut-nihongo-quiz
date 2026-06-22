@@ -64,6 +64,10 @@ docs/superpowers/
 grammar-*.md
 grammar-*.png
 quiz-*.png
+calculus-*.md
+calculus-*.png
+dark-mode-*.png
+footer-check.png
 
 # Backup files
 *.bak

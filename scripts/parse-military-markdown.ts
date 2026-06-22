@@ -80,6 +80,15 @@ const FILES: FileSpec[] = [
       { match: /^##\s+第四优先级/, suffix: 'p4', title: '军理 P4 · 补充巩固' },
     ],
   },
+  {
+    file: '军理题库_PDF提取版.md',
+    baseGroupId: 'military',
+    sections: [
+      { match: /^##\s+第一部分/, suffix: 'pdf-single', title: '军理 PDF · 单选题' },
+      { match: /^##\s+第二部分/, suffix: 'pdf-multi', title: '军理 PDF · 多选题' },
+      { match: /^##\s+第三部分/, suffix: 'pdf-judge', title: '军理 PDF · 判断题' },
+    ],
+  },
 ]
 
 const QUESTION_HDR = /^\*\*\s*(\d+)\s*[\.、]\s*(.+?)\s*\*\*\s*$/
@@ -89,7 +98,7 @@ const CHAPTER_HDR = /^##\s+([一二三四五六七八九十]+)、\s*(.+?)\s*$/
 function detectAnswerType(
   raw: string,
   options: { key: string; text: string }[],
-): { kind: 'single' | 'multi' | 'judgement'; normalized: string } {
+): { kind: 'single' | 'multi' | 'judgement' | 'skip'; normalized: string; reason?: string } {
   // Strip anything in/after parens (e.g. "错误（实质错误——…）" → "错误")
   const stripped = raw.replace(/[（(].*$/, '').trim()
   const cleaned = stripped.replace(/[\.。、\s]/g, '').toUpperCase()
@@ -122,7 +131,25 @@ function detectAnswerType(
   const letters = (cleaned.match(/[A-E]+/) || [''])[0]
   if (letters.length > 1) return { kind: 'multi', normalized: letters.split('').sort().join('') }
   if (letters.length === 1) return { kind: 'single', normalized: letters }
-  return { kind: 'judgement', normalized: '错误' }
+  // Text answer that doesn't match any option — this is a fill-in-blank / short-answer
+  // question that doesn't fit the choice/judgement model. Skip it rather than fabricating
+  // a bogus judgement with default answer "错误".
+  return { kind: 'skip', normalized: '', reason: 'short-answer-text' }
+}
+
+// Detect copy-pasted placeholder options ("国家/军队/政府/人民") that appear in dozens
+// of questions in 军理题库_按优先级整理.md where only option A has real content.
+const BOGUS_TEMPLATE = { B: '国家', C: '军队', D: '政府', E: '人民' }
+function hasBogusTemplateOptions(options: { key: string; text: string }[]): boolean {
+  if (options.length < 5) return false
+  const lookup: Record<string, string> = {}
+  for (const o of options) lookup[o.key] = o.text
+  return (
+    lookup['B'] === BOGUS_TEMPLATE.B &&
+    lookup['C'] === BOGUS_TEMPLATE.C &&
+    lookup['D'] === BOGUS_TEMPLATE.D &&
+    lookup['E'] === BOGUS_TEMPLATE.E
+  )
 }
 
 function parseFile(spec: FileSpec, rawDir: string): RawQuestion[] {
@@ -277,7 +304,14 @@ function parseFile(spec: FileSpec, rawDir: string): RawQuestion[] {
 
     const stem = stemParts.join(' ').replace(/\s+/g, ' ').trim()
 
+    // Skip questions whose B/C/D/E are the bogus 国家/军队/政府/人民 template —
+    // only option A has real content and the question is effectively unusable.
+    if (hasBogusTemplateOptions(options)) continue
+
     const { kind, normalized } = detectAnswerType(answerRaw, options)
+
+    // Skip short-answer / fill-in-blank questions that don't fit choice/judgement.
+    if (kind === 'skip') continue
 
     // Skip pure fill-in-blank questions (no options + non-judgement answer)
     if (options.length < 2 && kind !== 'judgement') continue
@@ -385,7 +419,85 @@ function main() {
     all.push(...parsed)
   }
 
-  const enriched = all.map((q, i) => {
+  // Deduplicate across files.
+  // Strategy:
+  //   1. Exact stem match (normalized) → keep one per group, priority p1-p4 > pdf-* > ch*.
+  //   2. Near-duplicate stem pairs (hand-curated, since jaccard < 1 but same knowledge point).
+  // Source md files stay intact; dedup happens at JSON generation time.
+  const DROP_IDS = new Set<string>([
+    // Near-dup pairs identified by AI review (see data/processed/pdf-dedup-candidates.jsonl)
+    'military-pdf-single-q00014', // ≈ military-p2-q00015
+    'military-pdf-multi-q00029',  // ≈ military-p4-q00090
+    'military-pdf-single-q00027', // ≈ military-p1-q00014
+    'military-pdf-single-q00024', // ≈ military-p1-q00036
+    'military-pdf-single-q00019', // ≈ military-p4-q00087
+    'military-pdf-judge-q00045',  // ≈ military-ch2-q00037
+    'military-pdf-single-q00041', // ≈ military-p4-q00017
+    'military-pdf-single-q00050', // ≈ military-p3-q00024
+    'military-pdf-judge-q00011',  // ≈ military-ch5-q00016
+    'military-pdf-single-q00062', // ≈ military-p4-q00063
+    'military-pdf-judge-q00029',  // ≈ military-ch5-q00010
+    'military-pdf-judge-q00031',  // ≈ military-ch17-q00013
+    'military-pdf-single-q00022', // ≈ military-p1-q00029
+    'military-pdf-judge-q00021',  // ≈ military-ch3-q00009
+    'military-pdf-multi-q00009',  // ≈ military-p2-q00004
+    'military-pdf-judge-q00030',  // ≈ military-ch1-q00010
+    'military-ch7-q00004',        // ≈ military-ch1-q00017
+    'military-p3-q00052',         // ≈ military-p3-q00051
+    'military-pdf-single-q00018', // ≈ military-p3-q00007
+    'military-pdf-single-q00007', // ≈ military-p3-q00004
+    'military-pdf-single-q00063', // ≈ military-p4-q00034
+    'military-ch17-q00001',       // ≈ military-ch5-q00023
+    'military-pdf-multi-q00021',  // ≈ military-p1-q00037
+    'military-pdf-single-q00061', // ≈ military-p2-q00020
+    'military-pdf-single-q00045', // ≈ military-p2-q00009
+    'military-pdf-multi-q00011',  // ≈ military-p2-q00003
+    'military-pdf-judge-q00014',  // ≈ military-ch17-q00005
+    'military-pdf-single-q00049', // ≈ military-p3-q00002
+    'military-pdf-multi-q00054',  // ≈ military-pdf-multi-q00006
+    'military-pdf-multi-q00007',  // ≈ military-p1-q00002
+    'military-ch5-q00035',        // ≈ military-p3-q00051 (最早制导武器)
+    'military-pdf-single-q00070', // ≈ military-p1-q00039 (与中国接壤国家数)
+    'military-pdf-multi-q00041',  // ≈ military-p4-q00091 (胡锦涛80年建军传统)
+    'military-pdf-judge-q00035',  // ≈ military-p3-q00020 (九二共识，单选 vs 判断)
+  ])
+  const deduped = all.filter((q) => {
+    const id = `${q.groupId}-q${String(q.numberInGroup).padStart(5, '0')}`
+    return !DROP_IDS.has(id)
+  })
+
+  // Exact-stem dedup with priority (p* > pdf-* > ch*).
+  const norm = (s: string) =>
+    s
+      .replace(/\s+/g, '')
+      .replace(/[，。、；：！？""''（）()【】《》、,.;:!?"'[\]<>—－·…]/g, '')
+      .toLowerCase()
+  const groupPriority = (gid: string): number => {
+    if (/military-p[1-4]$/.test(gid)) return 0
+    if (gid.startsWith('military-pdf')) return 1
+    return 2 // ch*
+  }
+  const byStem = new Map<string, RawQuestion[]>()
+  for (const q of deduped) {
+    const k = norm(q.stem)
+    if (!byStem.has(k)) byStem.set(k, [])
+    byStem.get(k)!.push(q)
+  }
+  const keepSet = new Set<RawQuestion>()
+  for (const qs of byStem.values()) {
+    qs.sort((a, b) => {
+      const pa = groupPriority(a.groupId)
+      const pb = groupPriority(b.groupId)
+      if (pa !== pb) return pa - pb
+      return (b.explanation || '').length - (a.explanation || '').length
+    })
+    keepSet.add(qs[0])
+  }
+  const finalQs = deduped.filter((q) => keepSet.has(q))
+  const droppedExact = deduped.length - finalQs.length
+  const droppedManual = all.length - deduped.length
+
+  const enriched = finalQs.map((q, i) => {
     const { tags, grammarPoints } = tagQuestion(q)
     return {
       id: `${q.groupId}-q${String(q.numberInGroup).padStart(5, '0')}`,
