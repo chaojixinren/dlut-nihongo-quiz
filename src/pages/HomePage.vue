@@ -82,102 +82,102 @@ async function refresh() {
   loading.value = true
   error.value = ''
   try {
-  const cat = activeCategory.value
-  const unlocked = isUnlocked.value
-  // 一次拿到题库 + 全表 stats，所有下游函数共享同一份数据，避免重复扫描
-  const [rawAll, allStatsArr] = await Promise.all([
-    loadQuestionBank(cat),
-    db.questionStats.toArray(),
-  ])
-  // 表站未解锁时，剔除里站专属 groupId（requireUnlock subBank），避免 tag、薄弱、掌握度被污染。
-  const all = filterVisibleQuestions(rawAll, unlocked)
-  questions.value = all
-  totalQuestions.value = all.length
+    const cat = activeCategory.value
+    const unlocked = isUnlocked.value
+    // 一次拿到题库 + 全表 stats，所有下游函数共享同一份数据，避免重复扫描
+    const [rawAll, allStatsArr] = await Promise.all([
+      loadQuestionBank(cat),
+      db.questionStats.toArray(),
+    ])
+    // 表站未解锁时，剔除里站专属 groupId（requireUnlock subBank），避免 tag、薄弱、掌握度被污染。
+    const all = filterVisibleQuestions(rawAll, unlocked)
+    questions.value = all
+    totalQuestions.value = all.length
 
-  const validIds = new Set(all.map((q) => q.id))
-  const statsMap = new Map<string, QuestionStats>()
-  const relevantStats: QuestionStats[] = []
-  for (const s of allStatsArr) {
-    if (!validIds.has(s.questionId)) continue
-    statsMap.set(s.questionId, s)
-    relevantStats.push(s)
-  }
-
-  doneCount.value = 0
-  totalAttempts.value = 0
-  totalCorrect.value = 0
-  wrongCount.value = 0
-  for (const s of relevantStats) {
-    if (s.attemptCount > 0) doneCount.value++
-    totalAttempts.value += s.attemptCount
-    totalCorrect.value += s.correctCount
-    if (s.wrongCount > 0) wrongCount.value++
-  }
-
-  // streak 用所有学科的 stats（跨学科仍保持连续），grace period 见 utils/streak.ts
-  streak.value = computeStreak(allStatsArr.map((s) => s.lastAttemptAt))
-
-  // recent 正确率：取 attempts 反向，按当前 category 过滤后再切片，
-  // 避免 limit(100) 拿到的全是其他 category 导致"近期正确率"失真
-  const recentAll = await db.attempts.orderBy('id').reverse().limit(500).toArray()
-  const recent = recentAll.filter((a) => validIds.has(a.questionId)).slice(0, 30)
-  recentCorrectRate.value =
-    recent.length > 0
-      ? Math.round((recent.filter((a) => a.isCorrect).length / recent.length) * 100)
-      : 0
-
-  // 4 个 reviewScheduler 函数共用一份 stats，避免再扫 4 次
-  const [weak, mast, wrong, untouched] = await Promise.all([
-    getWeakTags(cat, allStatsArr, { isUnlocked: unlocked }),
-    getMasterySummary(cat, allStatsArr, { isUnlocked: unlocked }),
-    getWrongQuestionIds(cat, allStatsArr, { isUnlocked: unlocked }),
-    getUntouchedQuestionIds(cat, allStatsArr, { isUnlocked: unlocked }),
-  ])
-  weakTags.value = weak
-  mastery.value = mast
-  wrongIds.value = wrong
-  untouchedIds.value = untouched
-
-  const groups = getAllGroups(cat)
-  const next: typeof groupStats.value = {}
-  for (const g of groups) {
-    const groupQs = all.filter((q) => q.groupId === g.groupId)
-    const groupIds = new Set(groupQs.map((q) => q.id))
-    let gDone = 0,
-      gAttempts = 0,
-      gCorrect = 0,
-      gWrong = 0
-    for (const id of groupIds) {
-      const s = statsMap.get(id)
-      if (!s) continue
-      if (s.attemptCount > 0) gDone++
-      gAttempts += s.attemptCount
-      gCorrect += s.correctCount
-      if (s.wrongCount > 0) gWrong++
+    const validIds = new Set(all.map((q) => q.id))
+    const statsMap = new Map<string, QuestionStats>()
+    const relevantStats: QuestionStats[] = []
+    for (const s of allStatsArr) {
+      if (!validIds.has(s.questionId)) continue
+      statsMap.set(s.questionId, s)
+      relevantStats.push(s)
     }
-    next[g.groupId] = {
-      total: g.count,
-      done: gDone,
-      attempts: gAttempts,
-      correct: gCorrect,
-      wrong: gWrong,
-      wrongIds: wrong.filter((id) => groupIds.has(id)),
-      untouchedIds: groupQs
-        .filter((q) => !statsMap.get(q.id) || statsMap.get(q.id)!.attemptCount === 0)
-        .map((q) => q.id),
+
+    doneCount.value = 0
+    totalAttempts.value = 0
+    totalCorrect.value = 0
+    wrongCount.value = 0
+    for (const s of relevantStats) {
+      if (s.attemptCount > 0) doneCount.value++
+      totalAttempts.value += s.attemptCount
+      totalCorrect.value += s.correctCount
+      if (s.wrongCount > 0) wrongCount.value++
     }
-  }
-  groupStats.value = next
 
-  const saved = await loadActiveSession()
-  activeSession.value = isSessionInProgress(saved) ? saved : null
-  if (saved && !isSessionInProgress(saved)) await clearActiveSession()
+    // streak 用所有学科的 stats（跨学科仍保持连续），grace period 见 utils/streak.ts
+    streak.value = computeStreak(allStatsArr.map((s) => s.lastAttemptAt))
 
-  // 每日目标
-  dailyGoal.value = await getSetting('dailyGoal', 30)
-  dailyDone.value = await getDailyAttemptCount()
+    // recent 正确率：取 attempts 反向，按当前 category 过滤后再切片，
+    // 避免 limit(100) 拿到的全是其他 category 导致"近期正确率"失真
+    const recentAll = await db.attempts.orderBy('id').reverse().limit(500).toArray()
+    const recent = recentAll.filter((a) => validIds.has(a.questionId)).slice(0, 30)
+    recentCorrectRate.value =
+      recent.length > 0
+        ? Math.round((recent.filter((a) => a.isCorrect).length / recent.length) * 100)
+        : 0
 
-  loading.value = false
+    // 4 个 reviewScheduler 函数共用一份 stats，避免再扫 4 次
+    const [weak, mast, wrong, untouched] = await Promise.all([
+      getWeakTags(cat, allStatsArr, { isUnlocked: unlocked }),
+      getMasterySummary(cat, allStatsArr, { isUnlocked: unlocked }),
+      getWrongQuestionIds(cat, allStatsArr, { isUnlocked: unlocked }),
+      getUntouchedQuestionIds(cat, allStatsArr, { isUnlocked: unlocked }),
+    ])
+    weakTags.value = weak
+    mastery.value = mast
+    wrongIds.value = wrong
+    untouchedIds.value = untouched
+
+    const groups = getAllGroups(cat)
+    const next: typeof groupStats.value = {}
+    for (const g of groups) {
+      const groupQs = all.filter((q) => q.groupId === g.groupId)
+      const groupIds = new Set(groupQs.map((q) => q.id))
+      let gDone = 0,
+        gAttempts = 0,
+        gCorrect = 0,
+        gWrong = 0
+      for (const id of groupIds) {
+        const s = statsMap.get(id)
+        if (!s) continue
+        if (s.attemptCount > 0) gDone++
+        gAttempts += s.attemptCount
+        gCorrect += s.correctCount
+        if (s.wrongCount > 0) gWrong++
+      }
+      next[g.groupId] = {
+        total: g.count,
+        done: gDone,
+        attempts: gAttempts,
+        correct: gCorrect,
+        wrong: gWrong,
+        wrongIds: wrong.filter((id) => groupIds.has(id)),
+        untouchedIds: groupQs
+          .filter((q) => !statsMap.get(q.id) || statsMap.get(q.id)!.attemptCount === 0)
+          .map((q) => q.id),
+      }
+    }
+    groupStats.value = next
+
+    const saved = await loadActiveSession()
+    activeSession.value = isSessionInProgress(saved) ? saved : null
+    if (saved && !isSessionInProgress(saved)) await clearActiveSession()
+
+    // 每日目标
+    dailyGoal.value = await getSetting('dailyGoal', 30)
+    dailyDone.value = await getDailyAttemptCount()
+
+    loading.value = false
   } catch (e) {
     loading.value = false
     error.value = e instanceof Error ? e.message : '加载题库失败，请刷新页面重试'

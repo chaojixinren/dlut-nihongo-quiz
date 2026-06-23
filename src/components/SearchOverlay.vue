@@ -124,7 +124,10 @@ function escapeHtml(s: string): string {
             <div class="sr-id">{{ q.id }}</div>
             <div class="sr-content">
               <span class="sr-group">{{ q.groupTitle }}</span>
-              <span class="sr-stem" v-html="highlightMatch(truncate(stripMarkdown(q.stem), 60), keyword)"></span>
+              <span
+                class="sr-stem"
+                v-html="highlightMatch(truncate(stripMarkdown(q.stem), 60), keyword)"
+              ></span>
             </div>
           </div>
         </div>

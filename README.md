@@ -5,11 +5,11 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 [![Made with Vue](https://img.shields.io/badge/made%20with-Vue%203-42b883.svg)](https://vuejs.org/)
 
-大连理工大学本科生期末复习用的 Web App，覆盖日语、中国近现代史、党史、军事理论共 5 个学科、6,000+ 道题。最早是「大家的日语」第 26-36 课复习题库，后扩展到多学科。
+大连理工大学本科生期末复习用的 Web App，覆盖综合日语、中国近现代史、党史、军事理论共 4 个学科、5,800+ 道题。最早是「大家的日语」第 26-36 课复习题库，后扩展到多学科。
 
 ## 特性
 
-- 5 大学科，共 6,096 题：日语语法 / 日语单词 / 中国近现代史 / 党史 / 军事理论
+- 4 大学科，共 5,857 题：综合日语2（单词 + 语法） / 中国近现代史 / 党史 / 军事理论
 - 多题型：单选、多选、判断 —— 历史 / 党史 / 军理共 1,374 道多选题、780 道判断题
 - 每题都带详细解析 + 错选项注释，知道为什么错
 - 刷题模式：随机出题、顺序刷、按课次/章节、错题重做、弱点专练
@@ -21,16 +21,15 @@
 
 ## 学科范围
 
-| 学科         |      题数 |      多选 |    判断 | 来源                          | 用途            |
-| ------------ | --------: | --------: | ------: | ----------------------------- | --------------- |
-| 日语语法     |       277 |         0 |       0 | 学习通 99 题 + 2021/2024 真题 | 大一下学期期末  |
-| 日语单词     |       686 |         0 |       0 | 《大家的日语》第 26-36 课     | 汉字 / 假名互选 |
-| 中国近现代史 |     2,749 |       801 |     495 | 课堂题库 + 纲要 + 习题集      | 近代史纲要期末  |
-| 党史         |     1,647 |       531 |       2 | 党史题库完整版                | 思政课复习      |
-| 军事理论     |       737 |        42 |     283 | 军理题库整理版                | 军训理论考核    |
-| **合计**     | **6,096** | **1,374** | **780** | —                             | —               |
+| 学科         |      题数 |      多选 |    判断 | 来源                     | 用途           |
+| ------------ | --------: | --------: | ------: | ------------------------ | -------------- |
+| 综合日语2    |       963 |         0 |       0 | 单词 686 + 语法 277      | 大一下学期期末 |
+| 中国近现代史 |     2,872 |       801 |     495 | 课堂题库 + 纲要 + 习题集 | 近代史纲要期末 |
+| 党史         |     1,615 |       531 |       2 | 党史题库完整版           | 思政课复习     |
+| 军事理论     |       407 |        42 |     283 | 军理题库整理版           | 军训理论考核   |
+| **合计**     | **5,857** | **1,374** | **780** | —                        | —              |
 
-日语语法目前按子库组织：学习通 99 题（g01–g10）、2021 年真题 79 题（g11）、2024 年真题 99 题（g21–g28）。
+综合日语2 包含四个子库：单词（w26–w36）、学习通 99 题（g01–g10）、2021 年真题 79 题（g11）、2024 年真题 99 题（g21–g28）。
 
 ## 在线使用
 
@@ -61,20 +60,19 @@ npm run dev          # http://localhost:5173/
 
 常用脚本：
 
-| 命令                     | 作用                                                          |
-| ------------------------ | ------------------------------------------------------------- |
-| `npm run dev`            | 启动开发服务器                                                |
-| `npm run build`          | 生产构建（`base=/dlut-nihongo-quiz/`，含 `vue-tsc` 类型检查） |
-| `npm run preview`        | 本地预览生产构建                                              |
-| `npm run test`           | 单元测试（vitest）                                            |
-| `npm run parse:all`      | 一次性跑全部 parser                                           |
-| `npm run parse:grammar`  | 语法 md → JSON                                                |
-| `npm run parse:words`    | 单词 md → JSON                                                |
-| `npm run parse:history`  | 历史 md → JSON                                                |
-| `npm run parse:party`    | 党史 md → JSON                                                |
-| `npm run parse:military` | 军事 md → JSON                                                |
-| `npm run audit:banks`    | 题库 schema + 内部去重检查                                    |
-| `npm run format`         | Prettier 自动格式化                                           |
+| 命令                      | 作用                                                          |
+| ------------------------- | ------------------------------------------------------------- |
+| `npm run dev`             | 启动开发服务器                                                |
+| `npm run build`           | 生产构建（`base=/dlut-nihongo-quiz/`，含 `vue-tsc` 类型检查） |
+| `npm run preview`         | 本地预览生产构建                                              |
+| `npm run test`            | 单元测试（vitest）                                            |
+| `npm run parse:all`       | 一次性跑全部 parser                                           |
+| `npm run parse:japanese2` | 综合日语2 md → JSON（合并语法 + 单词）                        |
+| `npm run parse:history`   | 历史 md → JSON                                                |
+| `npm run parse:party`     | 党史 md → JSON                                                |
+| `npm run parse:military`  | 军事 md → JSON                                                |
+| `npm run audit:banks`     | 题库 schema + 内部去重检查                                    |
+| `npm run format`          | Prettier 自动格式化                                           |
 
 > 不要手改 `public/*.json` —— 它们是 parser 生成的。源在 `data/raw/` 下的 Markdown。
 
@@ -111,12 +109,12 @@ npm run dev          # http://localhost:5173/
 
 ## English Summary
 
-A Vue 3 + Vite + TypeScript + Dexie single-page quiz app built for final-exam review at Dalian University of Technology (DLUT). Originally a Japanese-review tool for lessons 26–36 of《大家的日语》(Minna no Nihongo), it now spans **five subjects and 6,096 questions**:
+A Vue 3 + Vite + TypeScript + Dexie single-page quiz app built for final-exam review at Dalian University of Technology (DLUT). Originally a Japanese-review tool for lessons 26–36 of《大家的日语》(Minna no Nihongo), it now spans **four subjects and 5,857 questions**:
 
-- Japanese grammar (277, split into 学习通 / 2021 / 2024 sub-banks) and vocabulary (686)
-- Modern Chinese history (2,749, including 801 multi-answer and 495 judgement)
-- CPC party history (1,647, including 531 multi-answer)
-- Military theory (737, including 42 multi-answer and 283 judgement)
+- Comprehensive Japanese 2 (963, including 686 vocabulary and 277 grammar, split into 学习通 / 2021 / 2024 sub-banks)
+- Modern Chinese history (2,872, including 801 multi-answer and 495 judgement)
+- CPC party history (1,615, including 531 multi-answer)
+- Military theory (407, including 42 multi-answer and 283 judgement)
 
 **Features:** single/multi/judgement question types, per-question explanations with wrong-option annotations, wrong-answer book with spaced-repetition scheduling, statistics by subject/lesson/tag, offline-first via IndexedDB, mobile-friendly responsive UI.
 

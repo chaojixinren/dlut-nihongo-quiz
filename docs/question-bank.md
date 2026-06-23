@@ -2,17 +2,18 @@
 
 本文档讲怎么加题、改题、加新学科。**核心原则：`data/raw/*.md` 是唯一可信源，永远不要手改 `public/*.json`** —— 它们是脚本生成的，下次跑 parser 就会被覆盖。
 
-## 五个学科分类
+## 四个学科分类
 
 | 分类 | Category key | 源 md | JSON 输出 | Parser 命令 | 题数（约） |
 |---|---|---|---|---|---|
-| 日语语法 | `grammar` | `data/raw/日语期末复习题目答案解析_题目选项在上版.md` | `public/question-bank.json` | `npm run parse:grammar` | 99 |
-| 日语单词 | `word` | `data/raw/日语汉字单词选择题-第26-36课.md` | `public/word-question-bank.json` | `npm run parse:words` | 686 |
-| 中国近现代史 | `history` | `data/raw/history/*.md` | `public/history-question-bank.json` | `npm run parse:history` | 2,921 |
-| 党史 | `party` | `data/raw/party/*.md` | `public/party-question-bank.json` | `npm run parse:party` | 1,661 |
-| 军事理论 | `military` | `data/raw/military/*.md` | `public/military-question-bank.json` | `npm run parse:military` | 737 |
+| 综合日语2 | `japanese2` | 单词：`data/raw/日语汉字单词选择题-第26-36课.md`<br>语法：`data/raw/日语期末复习题目答案解析_题目选项在上版.md` | `public/japanese2-question-bank.json` | `npm run parse:japanese2` | 963 |
+| 中国近现代史 | `history` | `data/raw/history/*.md` | `public/history-question-bank.json` | `npm run parse:history` | 2,872 |
+| 党史 | `party` | `data/raw/party/*.md` | `public/party-question-bank.json` | `npm run parse:party` | 1,615 |
+| 军事理论 | `military` | `data/raw/military/*.md` | `public/military-question-bank.json` | `npm run parse:military` | 407 |
 
-合计 **6,104 题**，其中多选题 1,412 道（历史 838 + 党史 532 + 军事 42）。
+合计 **5,857 题**，其中多选题 1,374 道（历史 801 + 党史 531 + 军事 42）。
+
+> **注意**：旧的 `grammar` 和 `word` 分类已合并为 `japanese2`。`public/question-bank.json` 和 `public/word-question-bank.json` 是旧分类的遗留文件，新分类使用 `public/japanese2-question-bank.json`。
 
 ## Markdown 题目格式
 

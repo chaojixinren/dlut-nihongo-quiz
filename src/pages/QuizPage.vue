@@ -185,70 +185,70 @@ function resolveMode(all: Question[]): {
 
 onMounted(async () => {
   try {
-  await loadActiveCategory()
-  const queryCat = route.query.category as Category | undefined
-  if (queryCat && queryCat !== activeCategory.value) {
-    await setActiveCategory(queryCat)
-  }
-  const cat = activeCategory.value
-  // 表站未解锁时剔除里站题（requireUnlock subBank 的 groupOrder）。里站入口设了 subBank 后 isUnlocked 必为 true，no-op。
-  const all = filterVisibleQuestions(await loadQuestionBank(cat), isUnlocked.value)
-
-  // preload bookmark status so the watch on currentQuestion doesn't hit IndexedDB
-  const allStats = await db.questionStats.toArray()
-  bookmarkCache.value = new Set(allStats.filter((s) => s.isBookmarked).map((s) => s.questionId))
-
-  if (route.query.resume === '1') {
-    const saved = await loadActiveSession()
-    if (isSessionInProgress(saved)) {
-      const map = new Map(all.map((q) => [q.id, q] as const))
-      questions.value = saved.questionIds.map((id) => map.get(id)!).filter(Boolean)
-      sessionId.value = saved.sessionId
-      mode.value = saved.mode
-      correctCount.value = saved.correctCount
-      wrongList.value = [...saved.wrongList]
-      startedAt.value = saved.startedAt
-      currentIndex.value = saved.submitted ? saved.currentIndex + 1 : saved.currentIndex
-      submitted.value = false
-      selectedKey.value = ''
-      startTime.value = Date.now()
-      history.value = []
-      startTimer()
-      return
+    await loadActiveCategory()
+    const queryCat = route.query.category as Category | undefined
+    if (queryCat && queryCat !== activeCategory.value) {
+      await setActiveCategory(queryCat)
     }
-  }
+    const cat = activeCategory.value
+    // 表站未解锁时剔除里站题（requireUnlock subBank 的 groupOrder）。里站入口设了 subBank 后 isUnlocked 必为 true，no-op。
+    const all = filterVisibleQuestions(await loadQuestionBank(cat), isUnlocked.value)
 
-  const { poolMode, displayMode, pool, shuffle } = resolveMode(all)
-  mode.value = displayMode
+    // preload bookmark status so the watch on currentQuestion doesn't hit IndexedDB
+    const allStats = await db.questionStats.toArray()
+    bookmarkCache.value = new Set(allStats.filter((s) => s.isBookmarked).map((s) => s.questionId))
 
-  let finalPool = pool
-  if (poolMode === 'random') {
-    finalPool = shuffleArray(pool)
-  } else if (poolMode === 'weakness') {
-    const stats = await db.questionStats.toArray()
-    const validIds = new Set(all.map((q) => q.id))
-    const weakIds = stats
-      .filter((s) => validIds.has(s.questionId) && s.masteryLevel <= 2)
-      .map((s) => s.questionId)
-    const weakSet = new Set(weakIds)
-    const priorityQuestions = weakIds.map((id) => all.find((q) => q.id === id)!).filter(Boolean)
-    const remaining = shuffleArray(all.filter((q) => !weakSet.has(q.id)))
-    finalPool = [...priorityQuestions, ...remaining]
-  } else if (poolMode === 'exam') {
-    finalPool = shuffleArray([...all])
-  } else if ((poolMode === 'untouched' || poolMode === 'wrong') && shuffle) {
-    finalPool = shuffleArray(pool)
-  }
-  questions.value = finalPool
+    if (route.query.resume === '1') {
+      const saved = await loadActiveSession()
+      if (isSessionInProgress(saved)) {
+        const map = new Map(all.map((q) => [q.id, q] as const))
+        questions.value = saved.questionIds.map((id) => map.get(id)!).filter(Boolean)
+        sessionId.value = saved.sessionId
+        mode.value = saved.mode
+        correctCount.value = saved.correctCount
+        wrongList.value = [...saved.wrongList]
+        startedAt.value = saved.startedAt
+        currentIndex.value = saved.submitted ? saved.currentIndex + 1 : saved.currentIndex
+        submitted.value = false
+        selectedKey.value = ''
+        startTime.value = Date.now()
+        history.value = []
+        startTimer()
+        return
+      }
+    }
 
-  sessionId.value = generateSessionId()
-  startTime.value = Date.now()
-  startedAt.value = new Date().toISOString()
-  await saveActiveSession(snapshot(false))
-  startTimer()
+    const { poolMode, displayMode, pool, shuffle } = resolveMode(all)
+    mode.value = displayMode
 
-  window.addEventListener('keydown', onKeydown)
-  window.addEventListener('beforeunload', onBeforeUnload)
+    let finalPool = pool
+    if (poolMode === 'random') {
+      finalPool = shuffleArray(pool)
+    } else if (poolMode === 'weakness') {
+      const stats = await db.questionStats.toArray()
+      const validIds = new Set(all.map((q) => q.id))
+      const weakIds = stats
+        .filter((s) => validIds.has(s.questionId) && s.masteryLevel <= 2)
+        .map((s) => s.questionId)
+      const weakSet = new Set(weakIds)
+      const priorityQuestions = weakIds.map((id) => all.find((q) => q.id === id)!).filter(Boolean)
+      const remaining = shuffleArray(all.filter((q) => !weakSet.has(q.id)))
+      finalPool = [...priorityQuestions, ...remaining]
+    } else if (poolMode === 'exam') {
+      finalPool = shuffleArray([...all])
+    } else if ((poolMode === 'untouched' || poolMode === 'wrong') && shuffle) {
+      finalPool = shuffleArray(pool)
+    }
+    questions.value = finalPool
+
+    sessionId.value = generateSessionId()
+    startTime.value = Date.now()
+    startedAt.value = new Date().toISOString()
+    await saveActiveSession(snapshot(false))
+    startTimer()
+
+    window.addEventListener('keydown', onKeydown)
+    window.addEventListener('beforeunload', onBeforeUnload)
   } catch (e) {
     loadError.value = e instanceof Error ? e.message : '加载题库失败，请返回首页重试'
   }
