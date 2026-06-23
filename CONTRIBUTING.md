@@ -16,15 +16,14 @@
 
 题库的 single source of truth 是 `data/raw/` 下的 Markdown 文件。**永远不要直接编辑 `public/*.json`** —— 它们是 parser 生成的。
 
-本项目支持 5 个学科，每个学科有自己的源目录和 parser：
+本项目支持 4 个学科，每个学科有自己的源目录和 parser：
 
-| 学科         | 源 md                                                 | Parser 命令              |
-| ------------ | ----------------------------------------------------- | ------------------------ |
-| 日语语法     | `data/raw/日语期末复习题目答案解析_题目选项在上版.md` | `npm run parse:grammar`  |
-| 日语单词     | `data/raw/日语汉字单词选择题-第XX-YY课.md`            | `npm run parse:words`    |
-| 中国近现代史 | `data/raw/history/*.md`                               | `npm run parse:history`  |
-| 党史         | `data/raw/party/*.md`                                 | `npm run parse:party`    |
-| 军事理论     | `data/raw/military/*.md`                              | `npm run parse:military` |
+| 学科         | 源 md                                                                                                           | Parser 命令               |
+| ------------ | --------------------------------------------------------------------------------------------------------------- | ------------------------- |
+| 综合日语2    | 单词：`data/raw/日语汉字单词选择题-第XX-YY课.md`<br>语法：`data/raw/日语期末复习题目答案解析_题目选项在上版.md` | `npm run parse:japanese2` |
+| 中国近现代史 | `data/raw/history/*.md`                                                                                         | `npm run parse:history`   |
+| 党史         | `data/raw/party/*.md`                                                                                           | `npm run parse:party`     |
+| 军事理论     | `data/raw/military/*.md`                                                                                        | `npm run parse:military`  |
 
 完整流程（单选 / 多选 / 判断三种题型的 Markdown 格式、验证报告、新增学科的步骤、跨文件去重说明）在 **[docs/question-bank.md](docs/question-bank.md)**。
 
