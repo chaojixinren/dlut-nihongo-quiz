@@ -56,7 +56,7 @@ export const CATEGORIES: CategoryMeta[] = [
   },
   {
     key: 'japanese3',
-    short: '日语3',
+    short: '单词（第37–43课）',
     long: '综合日语3',
     desc: '第37–43课单词 · 汉字与假名互选',
     icon: '日',

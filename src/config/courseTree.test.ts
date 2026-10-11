@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { COURSE_TREE, type TreeNode } from './courseTree'
 import { CATEGORIES } from './categories'
+import { findEntry } from './entries'
 
 function walk(nodes: TreeNode[], visit: (n: TreeNode) => void): void {
   for (const n of nodes) {
@@ -63,6 +64,15 @@ describe('COURSE_TREE config', () => {
     const leafKeys = jp2!.children!.map((c) => c.key)
     expect(leafKeys).toContain('jp2-word')
     expect(leafKeys).toContain('jp2-grammar')
+  })
+
+  it('日语3单词和真题共用一个侧栏分组，顺序与首页入口一致', () => {
+    const groups = flatten(COURSE_TREE).filter(
+      (node) => node.type === 'group' && node.label === '综合日语3',
+    )
+    expect(groups).toHaveLength(1)
+    expect(groups[0]!.children?.map((node) => node.category)).toEqual(findEntry('jp-3')?.papers)
+    expect(groups[0]!.children?.find((node) => node.category === 'japanese3')?.subBank).toBe('word')
   })
 
   it('leaf nodes with requireUnlock do not break the contract when locked', () => {
