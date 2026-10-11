@@ -193,7 +193,6 @@ export const COURSE_TREE: TreeNode[] = [
         key: 'jp3-word',
         label: '单词（第37–43课）',
         category: 'japanese3',
-        subBank: 'word',
       },
       {
         type: 'leaf',

@@ -420,17 +420,14 @@ const isGroupView = computed(
     GROUPED_CATEGORIES.has(activeCategory.value) ||
     (hasSubBanks.value && Boolean(activeSubBankKey.value)),
 )
-const isWordSubBank = computed(
-  () => activeSubBankKey.value === 'word' || activeCategory.value === 'japanese3',
-)
+const isWordSubBank = computed(() => activeSubBankKey.value === 'word')
 const titleText = computed(() => {
-  if (meta.value.subBanks && currentSubBank.value) return currentSubBank.value.name
-  return meta.value.long
+  if (meta.value.long === '综合日语2' && currentSubBank.value) return currentSubBank.value.name
+  return meta.value.long === '综合日语2' ? '综合日语2' : meta.value.long
 })
 const subtitleText = computed(() => {
   const n = totalQuestions.value
   const k = activeCategory.value
-  if (k === 'japanese3') return `${n} 题 · 第37–43课 · 汉字 / 假名`
   if (k === 'japanese2') {
     if (currentSubBank.value) {
       const gCount = currentSubBank.value.groupOrder.length
@@ -760,9 +757,9 @@ const groupViewHint = computed(() => {
       </section>
     </Transition>
 
-    <!-- Group cards are shared by grouped categories and selected sub-banks. -->
-    <section class="section" v-if="isGroupView">
-      <div class="full-set-bar" v-if="!hasSubBanks">
+    <!-- Grouped categories (history/party/military): full-set bar + group cards -->
+    <section class="section" v-if="isGroupView && !hasSubBanks">
+      <div class="full-set-bar">
         <div class="full-set-info">
           <h2>{{ groupViewSectionTitle }}</h2>
           <p class="full-set-desc">{{ groupViewHint }}</p>
@@ -815,7 +812,7 @@ const groupViewHint = computed(() => {
               随机
             </button>
             <button
-              v-if="!isWordSubBank"
+              v-if="activeCategory !== 'japanese3'"
               class="btn btn-outline btn-sm"
               @click="startGroupQuiz(g.groupId, 'sequential', { questionType: 'fill' })"
             >
