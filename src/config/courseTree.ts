@@ -120,6 +120,28 @@ export const COURSE_TREE: TreeNode[] = [
   },
   {
     type: 'group',
+    key: 'sophomore-autumn',
+    label: '大二上',
+    icon: '二',
+    children: [
+      {
+        type: 'group',
+        key: 'japanese3-group',
+        label: '综合日语3',
+        children: [
+          {
+            type: 'leaf',
+            key: 'jp3-word',
+            label: '单词',
+            category: 'japanese3',
+            subBank: 'word',
+          },
+        ],
+      },
+    ],
+  },
+  {
+    type: 'group',
     key: 'general',
     label: '公共基础通识',
     icon: '通',

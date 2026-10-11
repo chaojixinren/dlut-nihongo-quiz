@@ -2,16 +2,35 @@
 
 本文档讲怎么加题、改题、加新学科。**核心原则：`data/raw/*.md` 是唯一可信源，永远不要手改 `public/*.json`** —— 它们是脚本生成的，下次跑 parser 就会被覆盖。
 
-## 四个学科分类
+## 学科分类
 
-| 分类 | Category key | 源 md | JSON 输出 | Parser 命令 | 题数（约） |
-|---|---|---|---|---|---|
-| 综合日语2 | `japanese2` | 单词：`data/raw/日语汉字单词选择题-第26-36课.md`<br>语法：`data/raw/日语期末复习题目答案解析_题目选项在上版.md` | `public/japanese2-question-bank.json` | `npm run parse:japanese2` | 963 |
-| 中国近现代史 | `history` | `data/raw/history/*.md` | `public/history-question-bank.json` | `npm run parse:history` | 2,872 |
-| 党史 | `party` | `data/raw/party/*.md` | `public/party-question-bank.json` | `npm run parse:party` | 1,615 |
-| 军事理论 | `military` | `data/raw/military/*.md` | `public/military-question-bank.json` | `npm run parse:military` | 407 |
+| 分类         | Category key | 源 md                                                                                                           | JSON 输出                             | Parser 命令               | 题数（约） |
+| ------------ | ------------ | --------------------------------------------------------------------------------------------------------------- | ------------------------------------- | ------------------------- | ---------- |
+| 综合日语2    | `japanese2`  | 单词：`data/raw/日语汉字单词选择题-第26-36课.md`<br>语法：`data/raw/日语期末复习题目答案解析_题目选项在上版.md` | `public/japanese2-question-bank.json` | `npm run parse:japanese2` | 963        |
+| 综合日语3    | `japanese3`  | `data/raw/japanese3/vocabulary-37-43.md`                                                                        | `public/japanese3-question-bank.json` | `npm run parse:japanese3` | 738        |
+| 中国近现代史 | `history`    | `data/raw/history/*.md`                                                                                         | `public/history-question-bank.json`   | `npm run parse:history`   | 2,872      |
+| 党史         | `party`      | `data/raw/party/*.md`                                                                                           | `public/party-question-bank.json`     | `npm run parse:party`     | 1,615      |
+| 军事理论     | `military`   | `data/raw/military/*.md`                                                                                        | `public/military-question-bank.json`  | `npm run parse:military`  | 407        |
 
-合计 **5,857 题**，其中多选题 1,374 道（历史 801 + 党史 531 + 军事 42）。
+上表旧分类的近似题数仅供参考；实际题数见 `public/_meta.json`（也包含计算机组成各题库）。
+
+## 综合日语3：第37–43课单词
+
+延续综合日语2的结构：每个词条两道四选一（假名选写法、写法选假名），课次为 `w37` 至 `w43`，ID 为 `w37-001-a/b`。入口为「大二上 → 综合日语3 → 单词」，支持按课复习、随机出题与错题复习。
+
+可信源为 `data/raw/japanese3/vocabulary-37-43.md`，解析器不调用模型，可以离线重新生成题库。每个词条保留原书 PDF 物理页、OCR 行序、词性、备注和 StepFun 响应标识。
+
+题库由 StepFun `step-5-preview` 辅助生成。教材中全假名、片假名词及短语按原表记保留；同一个词在不同课出现时按课保留。带 ▲ 的例句并入备注，无教材假名读音的缩写 `JL` 不生成双向题。
+
+平常改题只需修改可信源并运行：
+
+```bash
+npm run parse:japanese3
+npm run generate:meta
+npm run audit:banks
+```
+
+解析器校验每个词条两种题型、四个唯一选项、唯一正确答案、原读音/表记一致性与假名选项无汉字；校验摘要直接输出到终端。解析按选项文字组织，前端随机打乱选项后仍对应正确内容。
 
 > **注意**：旧的 `grammar` 和 `word` 分类已合并为 `japanese2`。`public/question-bank.json` 和 `public/word-question-bank.json` 是旧分类的遗留文件，新分类使用 `public/japanese2-question-bank.json`。
 
